@@ -1,0 +1,67 @@
+# A mixed Ubuntu / Rocky / RHEL fleet running containers and Kubernetes.
+#
+# Docker, Kubernetes and NVIDIA repositories are never listed: Packtrix adds them
+# automatically because the packages below need them, and shows this in `plan`.
+apiVersion: packtrix.dev/v1alpha1
+kind: OfflineRepository
+metadata:
+  name: datacenter
+spec:
+  targets:
+    - name: ubuntu-gpu
+      distro: ubuntu-24.04
+      architectures: [amd64]
+
+    - name: ubuntu-legacy
+      distro:
+        name: ubuntu-22.04
+        mirror: https://nexus.internal/repository/ubuntu   # fetch through an internal proxy
+
+    - distro: rocky-9
+      architectures: [amd64, arm64]
+
+    - name: rhel-9
+      distro:
+        name: rhel-9
+        auth: { entitlement: /etc/pki/entitlement }      # RHEL needs a subscription
+
+  autoRepos:
+    enabled: true
+    deny: []                       # e.g. [epel-*] if your organization doesn't allow EPEL
+
+  packages:
+    - curl
+    - jq
+    - chrony
+    - podman                       # in the distro repositories, no vendor repository needed
+    - docker-ce                    # → docker (auto)
+    - containerd.io                # → docker (auto)
+    - name: kubelet                # → kubernetes@1.34 (auto, selected by version)
+      version: "1.34.*"
+    - name: kubeadm
+      version: "1.34.*"
+    - name: kubectl
+      version: "1.34.*"
+    - name: nvidia-container-toolkit   # → nvidia-container-toolkit (auto)
+      only: [ubuntu-gpu]
+    - name: apache
+      deb: apache2
+      rpm: httpd
+
+  resolve:
+    baseline: minimal
+    recommends: false
+
+  updates:
+    check: "0 2 * * *"             # nightly check, when run as a scheduled job
+    accept: security
+    minAge: 72h
+    publish: approval              # stop at `plan`; publish after the lockfile PR is merged
+
+  publish:
+    path: /srv/repos
+    signing: { key: env:PACKTRIX_SIGNING_KEY }
+    keepSnapshots: 5
+
+  export:
+    splitSize: 4GiB

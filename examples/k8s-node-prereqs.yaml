@@ -1,0 +1,49 @@
+# Kubernetes node prerequisites for Ubuntu 24.04, Ubuntu 22.04 and Debian 12.
+#
+# Every package below comes from the official distro repositories, so no vendor
+# repository or extra key is involved. Ubuntu needs `universe` (the default) for
+# apt-transport-https and, on 24.04, glusterfs-client.
+#
+# Using Debian 13 instead? software-properties-common doesn't exist there. Add
+# `except: [debian-13]` to that entry.
+apiVersion: packtrix.dev/v1alpha1
+kind: OfflineRepository
+metadata:
+  name: k8s-node-prereqs
+spec:
+  targets:
+    - distro: ubuntu-24.04
+    - distro: ubuntu-22.04
+    - distro: debian-12
+
+  packages:
+    # APT / repository tooling
+    - apt-transport-https          # transitional package on all three; kept for provisioning scripts
+    - ca-certificates
+    - curl
+    - gnupg
+    - lsb-release
+    - software-properties-common
+    # General node tooling
+    - jq
+    - rsync
+    - openssh-client
+    - util-linux
+    - kmod
+    - e2fsprogs
+    # Networking (kube-proxy / CNI)
+    - conntrack
+    - ebtables
+    - ethtool
+    - iptables
+    - ipvsadm
+    - socat
+    # Storage clients
+    - open-iscsi
+    - nfs-common
+    - cifs-utils
+    - ceph-common
+    - glusterfs-client
+    # Security / platform
+    - apparmor-utils
+    - open-vm-tools

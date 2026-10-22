@@ -1,0 +1,44 @@
+# Custom repositories: an internal repository on top of a built-in distro, and a
+# distro that isn't in the built-in catalog, defined from scratch.
+apiVersion: packtrix.dev/v1alpha1
+kind: OfflineRepository
+metadata:
+  name: internal
+spec:
+  targets:
+    # Built-in distro + your own repositories on top.
+    - distro: ubuntu-24.04
+      extraRepos:
+        - name: internal-apt
+          type: apt
+          url: https://pkgs.internal/apt
+          suite: stable
+          components: [main]
+          gpgKey: keys/internal.gpg
+
+    - distro: rocky-9
+      extraRepos:
+        - name: internal-rpm
+          type: rpm
+          url: https://pkgs.internal/el9/{arch}/
+          gpgKey: keys/internal.gpg
+
+    # A distro Packtrix doesn't know: list its repositories yourself.
+    # OS, release and format are read from the repositories' metadata.
+    # Vendor repositories are not detected automatically for this target.
+    - name: oracle-9
+      repos:
+        - name: ol9-baseos
+          type: rpm
+          url: https://yum.oracle.com/repo/OracleLinux/OL9/baseos/latest/{arch}/
+          gpgKey: keys/RPM-GPG-KEY-oracle
+        - name: ol9-appstream
+          type: rpm
+          url: https://yum.oracle.com/repo/OracleLinux/OL9/appstream/{arch}/
+          gpgKey: keys/RPM-GPG-KEY-oracle
+
+  packages:
+    - curl
+    - jq
+    - name: internal-agent         # only published in the internal repositories
+      only: [ubuntu-24.04, rocky-9]
