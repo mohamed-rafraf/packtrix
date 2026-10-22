@@ -33,6 +33,9 @@ GOBUILDFLAGS ?= -v -trimpath
 LOCALBIN ?= bin
 CMDS := $(notdir $(wildcard cmd/*))
 
+GOLANGCI_LINT_VERSION ?= v2.14.0
+GOLANGCI_LINT := $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
+
 .PHONY: build
 build: $(addprefix $(LOCALBIN)/,$(CMDS))
 
@@ -47,6 +50,16 @@ $(LOCALBIN)/%: FORCE
 .PHONY: clean
 clean:
 	rm -rf $(LOCALBIN)
+
+.PHONY: lint
+lint: $(GOLANGCI_LINT)
+	$(GOLANGCI_LINT) run ./...
+
+# Installs the pinned golangci-lint. The version is part of the file name, so
+# changing GOLANGCI_LINT_VERSION installs the new version.
+$(GOLANGCI_LINT):
+	GOBIN=$(abspath $(LOCALBIN)) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	mv $(LOCALBIN)/golangci-lint $@
 
 .PHONY: update-codegen
 update-codegen:

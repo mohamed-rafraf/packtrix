@@ -25,7 +25,7 @@ import (
 	"time"
 
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/util/dump"
+	"k8s.io/utils/dump"
 
 	"github.com/packtrix/packtrix/pkg/apis/packtrix"
 )

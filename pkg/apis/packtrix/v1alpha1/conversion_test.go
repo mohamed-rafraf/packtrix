@@ -22,7 +22,7 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/dump"
+	"k8s.io/utils/dump"
 	"sigs.k8s.io/randfill"
 
 	"github.com/packtrix/packtrix/pkg/apis/packtrix"

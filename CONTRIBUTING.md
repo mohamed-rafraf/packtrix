@@ -17,7 +17,7 @@ You need Go 1.26 or newer.
 ```console
 $ make build                        # build bin/packtrix; GOOS=linux GOARCH=arm64 to cross-compile
 $ go test ./...                     # run the tests
-$ go vet ./... && gofmt -l .        # gofmt must print nothing
+$ make lint                         # golangci-lint, configured in .golangci.yml
 $ make update-codegen               # regenerate zz_generated.*.go after changing API types
 ```
 
