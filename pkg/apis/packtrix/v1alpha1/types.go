@@ -1,34 +1,35 @@
+/*
+Copyright 2026 The Packtrix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package v1alpha1
 
-const (
-	// GroupName is the API group of Packtrix manifests.
-	GroupName = "packtrix.dev"
-	// Version is the API version defined by this package.
-	Version = "v1alpha1"
-	// APIVersion is the value of the apiVersion field.
-	APIVersion = GroupName + "/" + Version
-	// Kind is the value of the kind field.
-	Kind = "OfflineRepository"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// TypeMeta identifies the schema of a manifest.
-type TypeMeta struct {
-	APIVersion string `json:"apiVersion"`
-	Kind       string `json:"kind"`
-}
-
-// ObjectMeta holds the manifest's metadata.
-type ObjectMeta struct {
-	Name string `json:"name"`
-}
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // OfflineRepository describes which machines an offline environment runs and
 // which packages they need. Packtrix turns it into one signed repository per
 // target.
 type OfflineRepository struct {
-	TypeMeta `json:",inline"`
-	Metadata ObjectMeta            `json:"metadata"`
-	Spec     OfflineRepositorySpec `json:"spec"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec OfflineRepositorySpec `json:"spec"`
 }
 
 // OfflineRepositorySpec is the desired content of the offline repositories.
@@ -168,9 +169,6 @@ type AutoRepos struct {
 	// e.g. "epel-*".
 	Deny []string `json:"deny,omitempty"`
 }
-
-// IsEnabled reports whether automatic detection is on.
-func (a AutoRepos) IsEnabled() bool { return a.Enabled == nil || *a.Enabled }
 
 // Baseline values. A baseline may also be "lock:<path>".
 const (

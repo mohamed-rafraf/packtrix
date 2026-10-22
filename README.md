@@ -20,7 +20,7 @@ Packtrix takes the distros you run and the packages you need, and produces exact
 ## Example
 
 ```yaml
-apiVersion: packtrix.dev/v1alpha1
+apiVersion: packtrix.io/v1alpha1
 kind: OfflineRepository
 metadata:
   name: k8s-nodes

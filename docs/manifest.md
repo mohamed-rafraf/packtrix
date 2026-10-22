@@ -1,13 +1,13 @@
 # Manifest reference
 
-> **Status: draft of `packtrix.dev/v1alpha1`.** Fields and defaults may change before the first release.
+> **Status: draft of `packtrix.io/v1alpha1`.** Fields and defaults may change before the first release.
 
 Packtrix reads `packtrix.yaml` from the current directory by default. Use `-f <file>` to choose another file.
 
 ## Minimal manifest
 
 ```yaml
-apiVersion: packtrix.dev/v1alpha1
+apiVersion: packtrix.io/v1alpha1
 kind: OfflineRepository
 metadata:
   name: datacenter
@@ -23,7 +23,7 @@ Everything else has a default.
 ## Full structure
 
 ```yaml
-apiVersion: packtrix.dev/v1alpha1
+apiVersion: packtrix.io/v1alpha1
 kind: OfflineRepository
 metadata:
   name: datacenter

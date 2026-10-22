@@ -1,4 +1,21 @@
-package v1alpha1
+/*
+Copyright 2026 The Packtrix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package validation checks manifests in the internal API.
+package validation
 
 import (
 	"fmt"
@@ -7,6 +24,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/packtrix/packtrix/pkg/apis/packtrix"
 )
 
 // FieldError describes one invalid field.
@@ -45,19 +64,14 @@ var (
 
 const maxNameLength = 63
 
-// Validate checks the manifest and returns a ValidationError listing every
-// problem, or nil. Call Default first: Validate expects defaults to be set.
-// Checks that need the built-in catalog or the network, such as whether a
-// distro exists, happen later.
-func (r *OfflineRepository) Validate() error {
+// ValidateOfflineRepository checks the manifest and returns a ValidationError
+// listing every problem, or nil. It expects the defaults of the manifest's API
+// version to be applied, as they are when decoding. Checks that need the
+// built-in catalog or the network, such as whether a distro exists, happen
+// later.
+func ValidateOfflineRepository(r *packtrix.OfflineRepository) error {
 	v := &validator{}
-	if r.APIVersion != APIVersion {
-		v.add("apiVersion", "must be %q", APIVersion)
-	}
-	if r.Kind != Kind {
-		v.add("kind", "must be %q", Kind)
-	}
-	v.name("metadata.name", r.Metadata.Name)
+	v.name("metadata.name", r.Name)
 
 	s := &r.Spec
 	targets := v.targets("spec.targets", s.Targets)
@@ -94,7 +108,7 @@ func (v *validator) name(field, name string) {
 }
 
 // targets validates the targets and returns their names.
-func (v *validator) targets(field string, targets []Target) []string {
+func (v *validator) targets(field string, targets []packtrix.Target) []string {
 	if len(targets) == 0 {
 		v.add(field, "at least one target is required")
 	}
@@ -116,7 +130,7 @@ func (v *validator) targets(field string, targets []Target) []string {
 
 		v.name(f+".name", t.Name)
 		switch {
-		case t.Name == SelectorDeb || t.Name == SelectorRPM:
+		case t.Name == packtrix.SelectorDeb || t.Name == packtrix.SelectorRPM:
 			v.add(f+".name", "%q is reserved: it selects every %s target in only/except", t.Name, t.Name)
 		case slices.Contains(names, t.Name):
 			v.add(f+".name", "duplicate target name %q", t.Name)
@@ -127,8 +141,8 @@ func (v *validator) targets(field string, targets []Target) []string {
 		for j, arch := range t.Architectures {
 			af := fmt.Sprintf("%s.architectures[%d]", f, j)
 			switch {
-			case !slices.Contains(SupportedArchitectures, arch):
-				v.add(af, "unsupported architecture %q (supported: %s)", arch, strings.Join(SupportedArchitectures, ", "))
+			case !slices.Contains(packtrix.SupportedArchitectures, arch):
+				v.add(af, "unsupported architecture %q (supported: %s)", arch, strings.Join(packtrix.SupportedArchitectures, ", "))
 			case slices.Contains(t.Architectures[:j], arch):
 				v.add(af, "duplicate architecture %q", arch)
 			}
@@ -140,7 +154,7 @@ func (v *validator) targets(field string, targets []Target) []string {
 	return names
 }
 
-func (v *validator) distro(field string, d Distro) {
+func (v *validator) distro(field string, d packtrix.Distro) {
 	v.name(field+".name", d.Name)
 	v.list(field+".components", d.Components, nameRE, "component")
 	if d.Mirror != "" {
@@ -153,9 +167,9 @@ func (v *validator) distro(field string, d Distro) {
 
 // repositories validates a repository list. With sameType, every repository
 // must have the same type, as a target defined from scratch can't mix formats.
-func (v *validator) repositories(field string, repos []Repository, sameType bool) {
+func (v *validator) repositories(field string, repos []packtrix.Repository, sameType bool) {
 	var names []string
-	var firstType RepoType
+	var firstType packtrix.RepoType
 	for i, r := range repos {
 		f := fmt.Sprintf("%s[%d]", field, i)
 		v.name(f+".name", r.Name)
@@ -165,7 +179,7 @@ func (v *validator) repositories(field string, repos []Repository, sameType bool
 		names = append(names, r.Name)
 
 		switch r.Type {
-		case RepoTypeAPT:
+		case packtrix.RepoTypeAPT:
 			flat := strings.HasSuffix(r.Suite, "/")
 			switch {
 			case r.Suite == "":
@@ -176,7 +190,7 @@ func (v *validator) repositories(field string, repos []Repository, sameType bool
 				v.add(f+".components", "required for apt repositories, e.g. [main]")
 			}
 			v.list(f+".components", r.Components, nameRE, "component")
-		case RepoTypeRPM:
+		case packtrix.RepoTypeRPM:
 			if r.Suite != "" {
 				v.add(f+".suite", "only used by apt repositories")
 			}
@@ -188,7 +202,7 @@ func (v *validator) repositories(field string, repos []Repository, sameType bool
 		default:
 			v.add(f+".type", "must be apt or rpm, got %q", r.Type)
 		}
-		if sameType && (r.Type == RepoTypeAPT || r.Type == RepoTypeRPM) {
+		if sameType && (r.Type == packtrix.RepoTypeAPT || r.Type == packtrix.RepoTypeRPM) {
 			if firstType == "" {
 				firstType = r.Type
 			} else if r.Type != firstType {
@@ -227,8 +241,8 @@ func (v *validator) url(field, raw string) {
 	}
 }
 
-func (v *validator) auth(field string, a Auth) {
-	if a == (Auth{}) {
+func (v *validator) auth(field string, a packtrix.Auth) {
+	if a == (packtrix.Auth{}) {
 		v.add(field, "set at least one credential")
 		return
 	}
@@ -245,7 +259,7 @@ func (v *validator) auth(field string, a Auth) {
 	v.secret(field+".token", a.Token)
 }
 
-func (v *validator) secret(field string, ref SecretRef) {
+func (v *validator) secret(field string, ref packtrix.SecretRef) {
 	if ref == "" {
 		return
 	}
@@ -254,7 +268,7 @@ func (v *validator) secret(field string, ref SecretRef) {
 	}
 }
 
-func (v *validator) packages(field string, pkgs []Package, targets []string) {
+func (v *validator) packages(field string, pkgs []packtrix.Package, targets []string) {
 	if len(pkgs) == 0 {
 		v.add(field, "at least one package is required")
 	}
@@ -294,14 +308,14 @@ func (v *validator) packages(field string, pkgs []Package, targets []string) {
 
 func (v *validator) selectors(field string, selectors, targets []string) {
 	for i, s := range selectors {
-		if s == SelectorDeb || s == SelectorRPM || slices.Contains(targets, s) {
+		if s == packtrix.SelectorDeb || s == packtrix.SelectorRPM || slices.Contains(targets, s) {
 			continue
 		}
 		v.add(fmt.Sprintf("%s[%d]", field, i), "unknown target %q (targets: %s; or deb, rpm)", s, strings.Join(targets, ", "))
 	}
 }
 
-func (v *validator) autoRepos(field string, a AutoRepos) {
+func (v *validator) autoRepos(field string, a packtrix.AutoRepos) {
 	for i, pattern := range a.Deny {
 		if _, err := path.Match(pattern, ""); err != nil || pattern == "" {
 			v.add(fmt.Sprintf("%s.deny[%d]", field, i), "invalid pattern %q", pattern)
@@ -309,29 +323,29 @@ func (v *validator) autoRepos(field string, a AutoRepos) {
 	}
 }
 
-func (v *validator) resolve(field string, r Resolve) {
+func (v *validator) resolve(field string, r packtrix.Resolve) {
 	switch {
-	case r.Baseline == BaselineMinimal, r.Baseline == BaselineNone:
-	case strings.HasPrefix(r.Baseline, BaselineLockPrefix) && len(r.Baseline) > len(BaselineLockPrefix):
+	case r.Baseline == packtrix.BaselineMinimal, r.Baseline == packtrix.BaselineNone:
+	case strings.HasPrefix(r.Baseline, packtrix.BaselineLockPrefix) && len(r.Baseline) > len(packtrix.BaselineLockPrefix):
 	default:
 		v.add(field+".baseline", `must be "minimal", "none" or "lock:<path>", got %q`, r.Baseline)
 	}
-	v.oneOf(field+".alternatives", r.Alternatives, AlternativesFirst, AlternativesAll)
+	v.oneOf(field+".alternatives", r.Alternatives, packtrix.AlternativesFirst, packtrix.AlternativesAll)
 	v.list(field+".exclude", r.Exclude, packageNameRE, "package name")
 }
 
-func (v *validator) updates(field string, u Updates) {
+func (v *validator) updates(field string, u packtrix.Updates) {
 	if u.Check != "" && len(strings.Fields(u.Check)) != 5 {
 		v.add(field+".check", `must be a cron expression with 5 fields, e.g. "0 2 * * *", got %q`, u.Check)
 	}
-	v.oneOf(field+".accept", u.Accept, AcceptAll, AcceptSecurity, AcceptNone)
-	if u.MinAge.Duration < 0 {
+	v.oneOf(field+".accept", u.Accept, packtrix.AcceptAll, packtrix.AcceptSecurity, packtrix.AcceptNone)
+	if u.MinAge < 0 {
 		v.add(field+".minAge", "must not be negative")
 	}
-	v.oneOf(field+".publish", u.Publish, PublishApproval, PublishAuto)
+	v.oneOf(field+".publish", u.Publish, packtrix.PublishApproval, packtrix.PublishAuto)
 }
 
-func (v *validator) publish(field string, p Publish) {
+func (v *validator) publish(field string, p packtrix.Publish) {
 	if p.Path == "" {
 		v.add(field+".path", "required")
 	}
@@ -341,9 +355,9 @@ func (v *validator) publish(field string, p Publish) {
 	v.secret(field+".signing.key", p.Signing.Key)
 }
 
-func (v *validator) export(field string, e Export) {
-	v.oneOf(field+".format", e.Format, ExportFormatTarZst)
-	if e.SplitSize != 0 && e.SplitSize < MiB {
+func (v *validator) export(field string, e packtrix.Export) {
+	v.oneOf(field+".format", e.Format, packtrix.ExportFormatTarZst)
+	if e.SplitSize != 0 && e.SplitSize < packtrix.MiB {
 		v.add(field+".splitSize", "must be at least 1MiB, got %s", e.SplitSize)
 	}
 }

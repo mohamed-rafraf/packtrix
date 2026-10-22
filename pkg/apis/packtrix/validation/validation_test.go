@@ -1,10 +1,35 @@
-package v1alpha1
+/*
+Copyright 2026 The Packtrix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package validation_test
 
 import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/packtrix/packtrix/pkg/apis/packtrix/manifest"
+	"github.com/packtrix/packtrix/pkg/apis/packtrix/validation"
 )
+
+const header = `apiVersion: packtrix.io/v1alpha1
+kind: OfflineRepository
+metadata:
+  name: test
+`
 
 func TestValidate(t *testing.T) {
 	tests := []struct {
@@ -220,19 +245,18 @@ func TestValidate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, err := Parse([]byte(header + "spec:" + tt.spec + "\n"))
+			r, err := manifest.Parse([]byte(header + "spec:" + tt.spec + "\n"))
 			if err != nil {
 				t.Fatalf("Parse: %v", err)
 			}
-			r.Default()
-			err = r.Validate()
+			err = validation.ValidateOfflineRepository(r)
 			if len(tt.want) == 0 {
 				if err != nil {
 					t.Fatalf("Validate: %v", err)
 				}
 				return
 			}
-			var verr ValidationError
+			var verr validation.ValidationError
 			if !errors.As(err, &verr) {
 				t.Fatalf("Validate error = %v, want a ValidationError", err)
 			}
@@ -245,22 +269,5 @@ func TestValidate(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestValidateTypeMeta(t *testing.T) {
-	r := &OfflineRepository{
-		Metadata: ObjectMeta{Name: "x"},
-		Spec: OfflineRepositorySpec{
-			Targets:  []Target{{Distro: &Distro{Name: "ubuntu-24.04"}}},
-			Packages: []Package{{Name: "curl"}},
-		},
-	}
-	r.Default()
-	err := r.Validate()
-	for _, w := range []string{`apiVersion: must be "packtrix.dev/v1alpha1"`, `kind: must be "OfflineRepository"`} {
-		if err == nil || !strings.Contains(err.Error(), w) {
-			t.Errorf("error = %v, want it to contain %q", err, w)
-		}
 	}
 }
