@@ -1,0 +1,120 @@
+# Copyright 2026 The Packtrix Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: "2"
+run:
+  modules-download-mode: readonly
+linters:
+  default: none
+  enable:
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - depguard
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - govet
+    - importas
+    - ineffassign
+    - misspell
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - predeclared
+    - staticcheck
+    - unconvert
+    - unused
+    - wastedassign
+    - whitespace
+
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: io/ioutil
+              desc: https://go.dev/doc/go1.16#ioutil
+            - pkg: github.com/ghodss/yaml
+              desc: use sigs.k8s.io/yaml instead
+            # The manifest types are decoded through their JSON tags, which
+            # other YAML libraries ignore.
+            - pkg: gopkg.in/yaml
+              desc: use sigs.k8s.io/yaml instead
+            - pkg: go.yaml.in/yaml
+              desc: use sigs.k8s.io/yaml instead
+    goconst:
+      min-occurrences: 5
+    govet:
+      enable:
+        - nilness # find tautologies / impossible conditions
+    importas:
+      alias:
+        - pkg: k8s.io/apimachinery/pkg/apis/meta/v1
+          alias: metav1
+        - pkg: k8s.io/apimachinery/pkg/api/equality
+          alias: apiequality
+        - pkg: k8s.io/apimachinery/pkg/api/errors
+          alias: apierrors
+        - pkg: k8s.io/apimachinery/pkg/util/errors
+          alias: kerrors
+        - pkg: k8s.io/apimachinery/pkg/util/runtime
+          alias: utilruntime
+      no-unaliased: true
+    staticcheck:
+      checks:
+        - all
+  exclusions:
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+      - legacy
+    # NOTE: Do not use commas in the exclude patterns, or else the regex will be
+    # split and you will be sad: https://github.com/golangci/golangci-lint/issues/665
+    rules:
+      # defaulter-gen and conversion-gen find functions by these names.
+      - path: pkg/apis/packtrix
+        text: func SetDefaults_
+      - path: pkg/apis/packtrix
+        text: func Convert_
+      - path: (.+)\.go$
+        text: singleCaseSwitch # in most cases this is the beginning of a lookup table and should be kept an obvious table
+      - linters:
+          - goconst
+        path: (.+)_test\.go
+      # The strict decoding tests misspell field names on purpose.
+      - linters:
+          - misspell
+        path: pkg/apis/packtrix/manifest/manifest_test\.go
+        text: "`(versoin|nmae)` is a misspelling"
+    paths:
+      - zz_generated.*.go
+
+issues:
+  # defaults to 3, which often needlessly hides issues and forces
+  # to re-run the linter across the entire repo many times
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    paths:
+      - zz_generated.*.go

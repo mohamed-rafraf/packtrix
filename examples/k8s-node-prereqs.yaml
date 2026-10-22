@@ -20,7 +20,7 @@
 #
 # Using Debian 13 instead? software-properties-common doesn't exist there. Add
 # `except: [debian-13]` to that entry.
-apiVersion: packtrix.dev/v1alpha1
+apiVersion: packtrix.io/v1alpha1
 kind: OfflineRepository
 metadata:
   name: k8s-node-prereqs

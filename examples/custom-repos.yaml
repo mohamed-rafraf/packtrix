@@ -14,7 +14,7 @@
 
 # Custom repositories: an internal repository on top of a built-in distro, and a
 # distro that isn't in the built-in catalog, defined from scratch.
-apiVersion: packtrix.dev/v1alpha1
+apiVersion: packtrix.io/v1alpha1
 kind: OfflineRepository
 metadata:
   name: internal

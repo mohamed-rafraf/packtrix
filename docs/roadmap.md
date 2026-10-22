@@ -5,7 +5,7 @@
 ## Phase 0: Design *(current)*
 
 - [x] Problem statement, goals and non-goals
-- [x] Manifest draft (`packtrix.dev/v1alpha1`)
+- [x] Manifest draft (`packtrix.io/v1alpha1`)
 - [x] Architecture and trust model
 - [ ] Feedback from real air-gapped environments
 - [ ] Decide the [open questions](#open-questions) that block Phase 1
@@ -62,5 +62,5 @@ Goal: one manifest produces working, signed APT and RPM repositories on a local 
 | 4 | **Per-target update policy** | Not in v1alpha1 |
 | 5 | **Multi-arch APT** (foreign architectures such as `i386`) | Out of scope for v1alpha1 |
 | 6 | **EL8 modular content** | Carry `modules.yaml` through; needs testing with real AppStream content |
-| 7 | **API group domain** for `apiVersion` | `packtrix.dev`, if the domain is registered |
+| 7 | **API group domain** for `apiVersion` | Decided: `packtrix.io` |
 | 8 | **Bundle format** | Plain `tar.zst` first, OCI artifact later |

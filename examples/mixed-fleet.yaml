@@ -16,7 +16,7 @@
 #
 # Docker, Kubernetes and NVIDIA repositories are never listed: Packtrix adds them
 # automatically because the packages below need them, and shows this in `plan`.
-apiVersion: packtrix.dev/v1alpha1
+apiVersion: packtrix.io/v1alpha1
 kind: OfflineRepository
 metadata:
   name: datacenter

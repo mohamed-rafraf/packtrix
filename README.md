@@ -5,7 +5,7 @@
 List the packages your air-gapped Linux machines need. Packtrix resolves every dependency for every distro you run, then builds signed APT and RPM repositories you can carry across the air gap.
 
 > [!NOTE]
-> **Status: design phase.** No working code exists yet. This repository holds the design, and the manifest format, CLI and architecture described here are proposals that will change. Feedback is welcome; see [Contributing](#contributing).
+> **Status: early development.** The CLI can validate manifests (`packtrix validate`). Resolving, downloading and publishing aren't implemented yet. The manifest format, CLI and architecture described here are proposals that will change. Feedback is welcome; see [Contributing](#contributing).
 
 ## Why
 
@@ -20,7 +20,7 @@ Packtrix takes the distros you run and the packages you need, and produces exact
 ## Example
 
 ```yaml
-apiVersion: packtrix.dev/v1alpha1
+apiVersion: packtrix.io/v1alpha1
 kind: OfflineRepository
 metadata:
   name: k8s-nodes
@@ -46,6 +46,17 @@ spec:
 $ packtrix plan                       # resolve dependencies for each distro, show what will be downloaded
 $ packtrix sync                       # download, verify and build signed repositories
 $ packtrix export -o bundle.tar.zst   # one file to carry across the air gap
+```
+
+### Try it
+
+What works today is checking a manifest:
+
+```console
+$ go install github.com/packtrix/packtrix/cmd/packtrix@latest
+$ packtrix validate -f examples/mixed-fleet.yaml
+examples/mixed-fleet.yaml is valid: 4 target(s), 11 package(s)
+$ packtrix validate -f examples/mixed-fleet.yaml -o yaml   # print it with every default filled in
 ```
 
 ## How it works
