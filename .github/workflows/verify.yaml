@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Verify
-
 on:
   pull_request:
 
@@ -22,7 +20,7 @@ permissions:
 
 jobs:
   boilerplate:
-    name: Boilerplate
+    name: pull-boilerplate
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -33,7 +31,7 @@ jobs:
       - run: make verify-boilerplate
 
   codegen:
-    name: Codegen
+    name: pull-verify-codegen
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -48,7 +46,7 @@ jobs:
       - run: make verify-codegen
 
   lint:
-    name: Lint
+    name: pull-lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
