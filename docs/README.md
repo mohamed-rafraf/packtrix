@@ -1,6 +1,6 @@
 # Packtrix documentation
 
-> **Status: design phase.** These documents describe what Packtrix will do and how. Nothing here is implemented yet, and names, fields and commands may change.
+> **Status: early development.** These documents describe what Packtrix will do and how. So far only the manifest format (`pkg/apis/packtrix/v1alpha1`) and `packtrix validate` are implemented. Names, fields and commands may change.
 
 | Document | Read it to learn |
 |---|---|

@@ -119,6 +119,19 @@ extraRepos:
     gpgKey: keys/internal.gpg
 ```
 
+### Auth object
+
+Used in `distro.auth` and in repository objects:
+
+| Field | Description |
+|---|---|
+| `username`, `password` | Basic authentication. Set both. `password` is a secret reference. |
+| `token` | Bearer token, as a secret reference. Can't be combined with `password`. |
+| `clientCert`, `clientKey` | Paths to a TLS client certificate and its key. Set both. |
+| `entitlement` | Directory holding RHEL subscription certificates, usually `/etc/pki/entitlement` |
+
+A **secret reference** is `env:NAME` (read an environment variable) or `file:/path` (read a file). Secrets themselves never appear in the manifest.
+
 ## `spec.packages`
 
 A list of packages, written once for all targets. An entry is either a string (the package name) or an object:
@@ -142,6 +155,8 @@ A list of packages, written once for all targets. An entry is either a string (t
 | `"1.34.1-1.1"` | That exact package version |
 
 Versions are compared with each format's native rules (`dpkg` ordering for deb; `rpm` ordering, including epochs, for rpm).
+
+**Always quote versions.** Unquoted, YAML reads `1.30` as the number 1.3. Packtrix rejects unquoted numeric versions rather than guess.
 
 ## `spec.autoRepos`
 
@@ -187,6 +202,7 @@ Versions are compared with each format's native rules (`dpkg` ordering for deb; 
 
 `packtrix validate` and `packtrix plan` reject a manifest when:
 
+- it contains an unknown or duplicated field. A typo such as `architecture:` instead of `architectures:` is an error, never silently ignored;
 - a target has both `distro` and `repos`, or neither;
 - two targets have the same name;
 - `only` or `except` names an unknown target;

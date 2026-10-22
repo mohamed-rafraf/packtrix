@@ -93,11 +93,20 @@ A bundle is a `tar.zst` archive containing:
 
 `import` verifies the bundle signature and every file hash, writes into the pool, and publishes the snapshot the same atomic way.
 
-## Code layout (proposed)
+## Code layout
+
+Implemented:
 
 ```
-cmd/packtrix/          CLI entry point
-api/v1alpha1/          manifest types, defaults, validation
+cmd/packtrix/                 binary entry point
+internal/cli/                 commands (cobra)
+internal/version/             build information
+pkg/apis/packtrix/v1alpha1/   manifest types, defaults, validation, loading
+```
+
+Planned:
+
+```
 internal/catalog/      built-in distros and vendor repositories, auto-detection
 internal/resolve/      resolver interface; apt and dnf container implementations
 internal/fetch/        download, verification, content-addressed pool

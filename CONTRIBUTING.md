@@ -1,6 +1,6 @@
 # Contributing to Packtrix
 
-Thanks for your interest. Packtrix is in its **design phase**: there is no code yet, and the most valuable contributions are about the design itself.
+Thanks for your interest. Packtrix is in **early development**: the manifest API and `packtrix validate` exist, and the rest is still being designed in [`docs/`](docs/). Contributions to the design are the most valuable right now.
 
 ## What helps most right now
 
@@ -9,6 +9,26 @@ Thanks for your interest. Packtrix is in its **design phase**: there is no code 
 - **Documentation fixes.** Pull requests for typos, clarity and examples are welcome.
 
 For larger design changes, open an issue first so we can agree on the direction before you write a pull request.
+
+## Development
+
+You need Go 1.25 or newer.
+
+```console
+$ go build ./cmd/packtrix          # build the binary
+$ go test ./...                     # run the tests
+$ go vet ./... && gofmt -l .        # gofmt must print nothing
+```
+
+The code is organized as follows:
+
+| Path | Contents |
+|---|---|
+| `cmd/packtrix/` | The binary's entry point |
+| `internal/cli/` | The commands |
+| `pkg/apis/packtrix/v1alpha1/` | The manifest: types, defaults, validation, loading |
+
+The files in `examples/` are loaded by the tests, so they must always stay valid.
 
 ## How changes are made
 
