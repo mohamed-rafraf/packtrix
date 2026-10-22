@@ -37,3 +37,5 @@ Name branches after the change, e.g. `docs/baseline-explanation` or `feat/catalo
 ## License
 
 By contributing, you agree that your contributions are licensed under the [Apache License 2.0](LICENSE).
+
+Every Go, shell, YAML and Makefile file starts with the license header from [`hack/boilerplate/`](hack/boilerplate/), with `YEAR` replaced by the year the file was created. Pull requests are checked automatically; run `make verify-boilerplate` to check locally.
