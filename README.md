@@ -1,6 +1,11 @@
-# Packtrix
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo/packtrix-logo-dark.svg">
+    <img alt="Packtrix" src="docs/assets/logo/packtrix-logo.svg" width="360">
+  </picture>
+</h1>
 
-**Declarative offline APT and RPM repositories.**
+<p align="center"><strong>Declarative offline APT and RPM repositories.</strong></p>
 
 List the packages your air-gapped Linux machines need. Packtrix resolves every dependency for every distro you run, then builds signed APT and RPM repositories you can carry across the air gap.
 
