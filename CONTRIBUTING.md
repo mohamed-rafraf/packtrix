@@ -43,7 +43,8 @@ The files in `examples/` are loaded by the tests, so they must always stay valid
 
 `main` is protected:
 
-- Every change goes through a **pull request**. Direct pushes, force pushes and branch deletion are blocked.
+- Every change goes through a **pull request** from a fork. Direct pushes, force pushes and branch deletion are blocked.
+- The checks `pull-boilerplate`, `pull-verify-codegen` and `pull-lint` must pass.
 - Pull requests are **squash-merged**, so each one becomes a single commit on `main`.
 - All review conversations must be resolved before merging.
 
@@ -59,9 +60,15 @@ fix: reject targets that mix releases
 
 Common prefixes: `docs`, `feat`, `fix`, `refactor`, `test`, `ci`, `chore`.
 
-### Branches
+### Forks and branches
 
-Name branches after the change, e.g. `docs/baseline-explanation` or `feat/catalog-rocky-10`. Branches are deleted automatically after merging.
+`packtrix/packtrix` only has `main`: nobody can create branches in it, maintainers included. To contribute:
+
+1. Fork the repository.
+2. Push a branch to your fork, named after the change, e.g. `docs/baseline-explanation` or `feat/catalog-rocky-10`.
+3. Open a pull request against `main`, with **Allow edits by maintainers** checked.
+
+If your pull request depends on another one, base it on `main` anyway and say so in its description.
 
 ## License
 
