@@ -75,9 +75,11 @@ site: $(HUGO)
 site-serve: $(HUGO)
 	$(HUGO) server --source site
 
-# Installs the pinned Hugo, the same way as golangci-lint.
+# Installs the pinned Hugo, the same way as golangci-lint. Hugo may need a newer
+# Go than Packtrix; GOTOOLCHAIN=auto lets go install fetch it, verified against
+# the Go checksum database.
 $(HUGO):
-	GOBIN=$(abspath $(LOCALBIN)) go install github.com/gohugoio/hugo@$(HUGO_VERSION)
+	GOTOOLCHAIN=auto GOBIN=$(abspath $(LOCALBIN)) go install github.com/gohugoio/hugo@$(HUGO_VERSION)
 	mv $(LOCALBIN)/hugo $@
 
 .PHONY: update-codegen
