@@ -36,6 +36,9 @@ CMDS := $(notdir $(wildcard cmd/*))
 GOLANGCI_LINT_VERSION ?= v2.14.0
 GOLANGCI_LINT := $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 
+HUGO_VERSION ?= v0.167.0
+HUGO := $(LOCALBIN)/hugo-$(HUGO_VERSION)
+
 .PHONY: build
 build: $(addprefix $(LOCALBIN)/,$(CMDS))
 
@@ -60,6 +63,23 @@ lint: $(GOLANGCI_LINT)
 $(GOLANGCI_LINT):
 	GOBIN=$(abspath $(LOCALBIN)) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 	mv $(LOCALBIN)/golangci-lint $@
+
+# Builds the website into site/public. SITE_BASE_URL overrides the base URL.
+.PHONY: site
+site: $(HUGO)
+	$(HUGO) --source site --minify $(if $(SITE_BASE_URL),--baseURL $(SITE_BASE_URL))
+
+# Serves the website at http://localhost:1313/ and rebuilds it on every change.
+.PHONY: site-serve
+site-serve: $(HUGO)
+	$(HUGO) server --source site
+
+# Installs the pinned Hugo, the same way as golangci-lint. Hugo may need a newer
+# Go than Packtrix; GOTOOLCHAIN=auto lets go install fetch it, verified against
+# the Go checksum database.
+$(HUGO):
+	GOTOOLCHAIN=auto GOBIN=$(abspath $(LOCALBIN)) go install github.com/gohugoio/hugo@$(HUGO_VERSION)
+	mv $(LOCALBIN)/hugo $@
 
 .PHONY: update-codegen
 update-codegen:

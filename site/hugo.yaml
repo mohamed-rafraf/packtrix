@@ -1,0 +1,87 @@
+# Copyright 2026 The Packtrix Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+baseURL: https://packtrix.github.io/
+locale: en-US
+title: Packtrix
+enableGitInfo: false
+disableKinds: [taxonomy, term]
+
+module:
+  imports:
+    - path: github.com/imfing/hextra
+  mounts:
+    # Hugo's defaults, which a mounts list replaces.
+    - { source: content, target: content }
+    - { source: layouts, target: layouts }
+    - { source: assets, target: assets }
+    - { source: static, target: static }
+    - { source: i18n, target: i18n }
+    # The documentation lives in docs/, where it also renders on GitHub.
+    # content/docs/_content.gotmpl turns it into pages.
+    - { source: ../docs, target: assets/docs, files: ["*.md"] }
+    - { source: ../docs/assets/logo, target: static/images/logo }
+    - source: ../docs/assets/logo
+      target: static
+      files: [favicon.svg, favicon.ico, apple-touch-icon.png]
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+
+menu:
+  main:
+    - name: Docs
+      pageRef: /docs
+      weight: 1
+    - name: Roadmap
+      pageRef: /docs/roadmap
+      weight: 2
+    - name: Search
+      weight: 5
+      params:
+        type: search
+    - name: GitHub
+      weight: 6
+      url: https://github.com/packtrix/packtrix
+      params:
+        icon: github
+
+params:
+  description: Declarative offline APT and RPM repositories. List the packages your air-gapped Linux machines need; Packtrix resolves every dependency and builds signed repositories you can carry across the air gap.
+  images: [images/logo/social-preview.png]
+  navbar:
+    displayTitle: false
+    displayLogo: true
+    logo:
+      path: images/logo/packtrix-logo.svg
+      dark: images/logo/packtrix-logo-dark.svg
+      width: 130
+      height: 30
+  page:
+    width: normal
+  theme:
+    default: system
+    displayToggle: true
+  footer:
+    enable: true
+    displayCopyright: true
+    displayPoweredBy: false
+  editURL:
+    enable: true
+    base: https://github.com/packtrix/packtrix/edit/main/docs
+  displayUpdatedDate: false

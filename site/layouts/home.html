@@ -1,0 +1,143 @@
+{{ define "main" }}
+{{- $docs := site.GetPage "/docs" -}}
+{{- $roadmap := site.GetPage "/docs/roadmap" -}}
+{{- $repo := "https://github.com/packtrix/packtrix" -}}
+{{- $manifest := `apiVersion: packtrix.io/v1alpha1
+kind: OfflineRepository
+metadata:
+  name: k8s-nodes
+spec:
+  targets:
+    - distro: ubuntu-24.04
+    - distro: ubuntu-22.04
+    - distro: rocky-9
+
+  packages:
+    - curl
+    - conntrack
+    - docker-ce             # adds Docker's repository
+    - name: kubelet
+      version: "1.34.*"     # picks Kubernetes 1.34
+    - name: apache
+      deb: apache2          # names differ by format
+      rpm: httpd` -}}
+{{- $commands := `$ packtrix plan     # resolve, write packtrix.lock
+$ packtrix sync     # download, verify, sign
+$ packtrix export   # one bundle for the air gap` -}}
+<div class="px-home">
+
+  <section class="px-hero">
+    <div>
+      <a class="px-status" href="{{ $roadmap.RelPermalink }}">Early development · first release: APT repositories</a>
+      <h1>Declarative <span class="px-accent">offline</span> APT and RPM repositories</h1>
+      <p class="px-lead">List the packages your air-gapped Linux machines need. Packtrix resolves every dependency for every distro you run, then builds signed APT and RPM repositories you can carry across the air gap.</p>
+      <div class="px-actions">
+        <a class="px-button px-button-primary" href="{{ $docs.RelPermalink }}">Read the docs</a>
+        <a class="px-button" href="{{ $repo }}">View on GitHub</a>
+      </div>
+    </div>
+    <div class="px-hero-art">
+      {{ partial "packtrix/mark.html" (dict "class" "px-mark-hero") }}
+    </div>
+  </section>
+
+  <section class="px-section px-split">
+    <div>
+      <h2>One manifest, every distro</h2>
+      <p class="px-intro">Name the distros your machines run and the packages they need. Packtrix knows each distro's official repositories and signing keys, and adds vendor repositories such as Docker's or Kubernetes' when a package needs them.</p>
+      <div class="px-code">{{ transform.Highlight $commands "console" "" }}</div>
+    </div>
+    <div class="px-code">{{ transform.Highlight $manifest "yaml" "" }}</div>
+  </section>
+
+  <section class="px-section">
+    <h2>How it works</h2>
+    <p class="px-intro">Packtrix runs in two places: a connected machine that has internet access, and the offline side that serves your machines.</p>
+    <ol class="px-steps">
+      <li class="px-card">
+        <p class="px-label">Connected side</p>
+        <h3>Plan</h3>
+        <p>Packtrix resolves the dependencies of every listed package for each distro, from the repositories' own metadata. The lockfile records every package, version, checksum and source.</p>
+      </li>
+      <li class="px-card">
+        <p class="px-label">Connected side</p>
+        <h3>Sync and export</h3>
+        <p>It downloads exactly what the lockfile lists, verifies each file against the vendor's signatures, builds one signed repository per distro, and packs everything into a bundle.</p>
+      </li>
+      <li class="px-card">
+        <p class="px-label">Offline side</p>
+        <h3>Import and serve</h3>
+        <p>The offline side verifies the bundle and publishes it as a new snapshot. Machines install with plain <code>apt</code> and <code>dnf</code>, from any web server.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="px-section">
+    <h2>Why Packtrix</h2>
+    <div class="px-grid px-grid-3">
+      {{- range slice
+        (dict "icon" "document-text" "title" "One manifest for APT and RPM" "text" "The package list is written once. Differences between formats are per-package exceptions, not separate files.")
+        (dict "icon" "puzzle" "title" "Dependency resolution built in" "text" "Packtrix follows the rules apt and dnf apply, from the repositories' metadata. It's a single binary: no container runtime, no apt or dnf needed.")
+        (dict "icon" "collection" "title" "Vendor repositories found for you" "text" "Docker, Kubernetes, NVIDIA, EPEL and others are added when a listed package needs them, and the plan always shows it.")
+        (dict "icon" "clipboard-check" "title" "Every change is reviewable" "text" "The lockfile records exactly what crosses the air gap. An update is a diff to review, and it ships as a small delta bundle.")
+        (dict "icon" "shield-check" "title" "Verified, then signed" "text" "Every package traces back to an upstream signature made by a pinned key. Your repositories are signed with your own key.")
+        (dict "icon" "server" "title" "Plain repositories" "text" "Standard APT and RPM repositories, served by any web server. Machines need no agent, plugin or special client.")
+      }}
+      <div class="px-card">
+        <span class="px-icon">{{ partial "utils/icon.html" (dict "name" .icon "attributes" `height="22" aria-hidden="true"`) }}</span>
+        <h3>{{ .title }}</h3>
+        <p>{{ .text }}</p>
+      </div>
+      {{- end }}
+    </div>
+  </section>
+
+  <section class="px-section">
+    <h2>Built for</h2>
+    <div class="px-grid px-grid-3 px-grid-compact">
+      {{- range slice
+        (dict "title" "Air-gapped Kubernetes nodes" "text" "Node prerequisites, the container runtime and kubelet, for Ubuntu and RHEL-family nodes, from one manifest.")
+        (dict "title" "Regulated and sovereign networks" "text" "An approved package set, where every change is reviewed before it enters.")
+        (dict "title" "Offline security patching" "text" "Scheduled, security-only updates, shipped as small delta bundles.")
+        (dict "title" "Edge and remote sites" "text" "Small repositories and small updates over slow or intermittent links.")
+        (dict "title" "Mixed fleets and migrations" "text" "Moving from Ubuntu 22.04 to 24.04, or from CentOS to Rocky, means adding a target. The package list stays the same.")
+        (dict "title" "Reproducible image builds" "text" "Image builds install from a pinned snapshot instead of whatever upstream serves that day.")
+      }}
+      <div class="px-usecase">
+        <h3>{{ .title }}</h3>
+        <p>{{ .text }}</p>
+      </div>
+      {{- end }}
+    </div>
+  </section>
+
+  <section class="px-section">
+    <h2>Where it's going</h2>
+    <p class="px-intro">Packtrix validates manifests today. Each release adds a working part of the pipeline; the <a href="{{ $roadmap.RelPermalink }}">roadmap</a> has the details.</p>
+    <div class="px-grid px-grid-4">
+      {{- range slice
+        (dict "version" "v0.1.0" "name" "APT" "milestone" 2 "text" "Resolve and mirror Ubuntu 22.04/24.04 and Debian 12/13 into signed APT repositories.")
+        (dict "version" "v0.2.0" "name" "RPM" "milestone" 3 "text" "Rocky Linux 9 and AlmaLinux 9, on the same resolver and pipeline.")
+        (dict "version" "v0.3.0" "name" "Air gap and updates" "milestone" 4 "text" "Snapshots, bundles, delta updates, update checks and plan diffs.")
+        (dict "version" "v0.4.0" "name" "Catalog growth" "milestone" 5 "text" "Vendor repositories found automatically, more distros, RHEL and arm64.")
+      }}
+      <a class="px-card px-card-link" href="{{ $repo }}/milestone/{{ .milestone }}">
+        <p class="px-label">{{ .version }}</p>
+        <h3>{{ .name }}</h3>
+        <p>{{ .text }}</p>
+      </a>
+      {{- end }}
+    </div>
+  </section>
+
+  <section class="px-section px-cta">
+    <h2>Help shape Packtrix</h2>
+    <p class="px-intro">The design is open for feedback. Tell us about the distros, packages and air-gap constraints you deal with: they shape the manifest and its defaults.</p>
+    <div class="px-actions">
+      <a class="px-button px-button-primary" href="{{ $repo }}/issues/new">Open an issue</a>
+      <a class="px-button" href="{{ $repo }}/blob/main/CONTRIBUTING.md">Contributing guide</a>
+    </div>
+  </section>
+
+</div>
+{{ end }}

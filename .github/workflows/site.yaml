@@ -1,0 +1,110 @@
+# Copyright 2026 The Packtrix Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Builds the website on pull requests. On main, it also publishes it to the
+# gh-pages branch of packtrix/packtrix.github.io, which serves
+# https://packtrix.github.io/.
+name: site
+
+on:
+  pull_request:
+    paths:
+      - docs/**
+      - site/**
+      - Makefile
+      - .github/workflows/site.yaml
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - site/**
+      - Makefile
+      - .github/workflows/site.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: pull-site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - run: make site
+
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site
+          path: site/public
+          retention-days: 1
+
+  deploy:
+    name: post-site-deploy
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The website environment only accepts deployments from main, and holds
+    # the credentials of the packtrix-site-deploy GitHub App. The app is
+    # installed only on packtrix/packtrix.github.io.
+    environment:
+      name: website
+      url: https://packtrix.github.io/
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: site
+
+      # A token that expires within the hour and can only write the contents
+      # of packtrix/packtrix.github.io.
+      - id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.SITE_DEPLOY_CLIENT_ID }}
+          private-key: ${{ secrets.SITE_DEPLOY_PRIVATE_KEY }}
+          owner: packtrix
+          repositories: packtrix.github.io
+          permission-contents: write
+
+      # One commit that replaces the previous one, so the repository doesn't
+      # grow with every deploy.
+      - name: Push to packtrix/packtrix.github.io
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          APP_SLUG: ${{ steps.token.outputs.app-slug }}
+        run: |
+          bot="${APP_SLUG}[bot]"
+          id=$(gh api "/users/${bot}" --jq .id)
+          cd site
+          touch .nojekyll
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name="${bot}" -c user.email="${id}+${bot}@users.noreply.github.com" \
+            commit -q -m "Deploy packtrix/packtrix@${GITHUB_SHA}"
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/packtrix/packtrix.github.io.git" gh-pages

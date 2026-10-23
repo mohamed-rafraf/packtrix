@@ -1,0 +1,25 @@
+{{- /*
+  Turns the Markdown files in docs/ into pages, in reading order. The files
+  stay plain Markdown, so they also render on GitHub: each page's title is the
+  file's first heading, which is removed from the body.
+*/ -}}
+{{- $pages := slice "overview" "concepts" "manifest" "workflow" "architecture" "security" "catalog" "roadmap" -}}
+{{- range $i, $name := $pages -}}
+  {{- with resources.Get (printf "docs/%s.md" $name) -}}
+    {{- $text := .Content -}}
+    {{- $heading := findRESubmatch `(?m)^# (.+)$` $text 1 -}}
+    {{- if not $heading -}}
+      {{- errorf "docs/%s.md has no heading" $name -}}
+    {{- end -}}
+    {{- $body := replaceRE `\A# .+\n+` "" $text 1 -}}
+    {{- $.AddPage (dict
+      "path" $name
+      "title" (index $heading 0 1)
+      "weight" (add $i 1)
+      "content" (dict "mediaType" "text/markdown" "value" $body)
+      "params" (dict "editURL" (printf "https://github.com/packtrix/packtrix/edit/main/docs/%s.md" $name))
+    ) -}}
+  {{- else -}}
+    {{- errorf "docs/%s.md not found" $name -}}
+  {{- end -}}
+{{- end -}}
