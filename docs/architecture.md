@@ -5,41 +5,71 @@
 ## Pipeline
 
 ```
-manifest ──► expand ──► resolve ──► lock ──► fetch ──► build ──► validate ──► publish ──► export
-              │           │                    │         │          │            │
-         built-in     apt / dnf in         verify     subset     install      atomic
-         catalog      a container per      upstream   upstream   test in a    switch of
-                      target               signatures metadata,  clean        `current`
-                                           + SHA-256  sign       container
+manifest ──► expand ──► resolve ──► lock ──► fetch ──► build ──► publish ──► export
+              │           │                    │         │          │
+         built-in     dependency           verify     subset     atomic
+         catalog      closure in Go,       upstream   upstream   switch of
+                      from upstream        signatures metadata,  `current`
+                      metadata             + SHA-256  sign
 ```
 
 | Stage | Input | Output |
 |---|---|---|
 | **expand** | Manifest and built-in catalog | Every target with concrete repository URLs, components and pinned keys |
-| **resolve** | Expanded targets and package list | For each target and architecture: the exact set of packages to install |
+| **resolve** | Expanded targets, package list and upstream metadata | For each target and architecture: every package the machines need beyond the baseline |
 | **lock** | Resolution result | `packtrix.lock` |
 | **fetch** | Lockfile | Package files in the content-addressed pool, each verified |
 | **build** | Pool and lockfile | Repository metadata for each target, signed |
-| **validate** | Candidate snapshot | Proof that `apt`/`dnf` can install every listed package from it |
-| **publish** | Validated snapshot | `current` switched to the new snapshot |
+| **validate** *(optional)* | Candidate snapshot | Proof that `apt`/`dnf` install every listed package from it |
+| **publish** | Built snapshot | `current` switched to the new snapshot |
 | **export** | Snapshot (and optionally an earlier lockfile) | A full or delta bundle |
 
 ## Resolution
 
-Packtrix doesn't implement a dependency solver. For each target and architecture it runs the distro's own resolver inside a throwaway container of that distro:
+Packtrix resolves dependencies itself, in Go, from the metadata of each target's repositories: `Packages` files for APT, `primary.xml` and `filelists.xml` for RPM. It needs no container runtime and no `apt` or `dnf` binary, so a Rocky target resolves on an Ubuntu machine and the other way round.
 
-- **APT targets:** `apt-get` runs against the target's repositories with the baseline's package status as the "installed" state, and prints what it would download (URL, size, hash) instead of installing.
-- **RPM targets:** `dnf` runs with an install root set to the baseline and prints the resolved package set.
+### A repository, not an installation
 
-Why containers:
+`apt` and `dnf` choose exactly one consistent set of packages to install on one machine. Packtrix builds a repository that machines install from later, with their own `apt` or `dnf`. The repository must contain everything a machine could need, and the machine makes the final choice. So Packtrix computes a dependency **closure**, not a single solution:
 
-- **Correct by construction.** `apt` handles alternatives, virtual packages and `Pre-Depends` exactly as the machines will. `dnf` handles weak dependencies and modular content (EL8) exactly as the machines will.
-- **Cross-distro.** A Rocky target can be resolved on an Ubuntu build machine, and the other way round.
-- **Baselines for free.** `minimal` is the distro's minimal container image; `none` is an empty package status; a discovered host's status can be replayed.
+1. Start with the listed packages. A version constraint such as `1.34.*` selects an exact version.
+2. For each dependency of each package in the set, skip it if the baseline or the set already satisfies it. Otherwise add a provider: the first alternative of `a | b` (every alternative with `alternatives: all`), a real package before a virtual one, and the newest version that satisfies the constraint.
+3. When a package breaks or conflicts with the baseline version of another package, add the newer version that the machine's `apt` or `dnf` will upgrade to.
+4. Repeat until nothing is added.
 
-The resolver's only output is a list of `(name, version, architecture, source repository)`. Everything else is done in Go.
+An extra package costs a little space; a missing one makes an installation fail offline. Where the two could differ, Packtrix includes rather than omits.
 
-An in-process resolver based on libsolv is a possible later option for environments without a container runtime. See [roadmap](roadmap.md).
+The resolver's output is a list of `(name, version, architecture, source repository)`, which the lockfile records.
+
+### What the resolver handles
+
+| APT | RPM |
+|---|---|
+| `Depends` and `Pre-Depends`, alternatives (`a \| b`), versions compared with dpkg's rules | `Requires` on capabilities and `Provides`, versions compared with RPM's rules, including epochs |
+| Virtual packages through `Provides` | File dependencies, such as `/usr/bin/python3`, through `filelists.xml` |
+| `Breaks` and `Conflicts` against baseline versions | Boolean dependencies: `(a or b)`, `(x if y)` |
+| `Multi-Arch` and `Architecture: all` | Modular content on EL8: packages of streams that aren't enabled are hidden, as `dnf` hides them |
+| `Recommends`, when `resolve.recommends` is on | Weak dependencies, when `resolve.recommends` is on; `Obsoletes` |
+
+### Baselines from metadata
+
+The baseline is computed from the target's own metadata, at the versions of the distro's **release**, not its latest updates:
+
+- **`minimal`, APT:** `Essential` packages and those with `Priority: required` or `important`, which is what the distro's installer puts on a minimal system.
+- **`minimal`, RPM:** the `@core` group from the repositories' `comps.xml`.
+- **`none`:** nothing.
+- **`lock:<file>`:** the package list of a discovered host, at its exact versions.
+
+Release versions matter for machines installed from older media: if a package needs a newer `libssl3` than the release shipped, that update is included.
+
+### Checking against apt and dnf
+
+The resolver must agree with the tools the machines run:
+
+- **Nightly, in CI:** for every built-in distro, test manifests are resolved by Packtrix and by real `apt` and `dnf` in containers. The check fails if `apt` or `dnf` picks a package that Packtrix's closure doesn't contain.
+- **Optionally, on your side:** `packtrix sync --verify-install` runs the [validation](#validation) step when `podman` or `docker` is available.
+
+Containers are used for these checks only. Producing repositories never needs them.
 
 ## Fetching and the package pool
 
@@ -81,7 +111,9 @@ For each target, the distro packages and the vendor packages are merged into **o
 
 ## Validation
 
-Before publishing, Packtrix starts a clean container of each target distro, points it only at the candidate snapshot, and asks `apt`/`dnf` to install every listed package (a dry run). If any install fails, the snapshot isn't published.
+With `packtrix sync --verify-install`, Packtrix starts a clean container of each target distro before publishing, points it only at the candidate snapshot, and installs every listed package with `apt` or `dnf`. If any install fails, the snapshot isn't published.
+
+This step is optional, and it is the only one that needs `podman` or `docker`. The same install tests always run in Packtrix's own CI.
 
 ## Bundles
 
@@ -114,19 +146,19 @@ Planned:
 
 ```
 internal/catalog/      built-in distros and vendor repositories, auto-detection
-internal/resolve/      resolver interface; apt and dnf container implementations
+internal/resolve/      dependency closure; APT and RPM dependency models, baselines
 internal/fetch/        download, verification, content-addressed pool
 internal/repo/apt/     APT metadata subsetting and signing
 internal/repo/rpm/     RPM metadata subsetting and signing
 internal/lock/         lockfile read, write, diff
 internal/publish/      snapshots, atomic switch, garbage collection
 internal/bundle/       export and import
-internal/validate/     install tests against candidate snapshots
+internal/validate/     optional install tests against candidate snapshots, in containers
 ```
 
 ## Requirements
 
 | Side | Needs |
 |---|---|
-| Connected | Linux, `podman` or `docker`, outbound access to the upstream repositories (directly or through a proxy) |
+| Connected | The `packtrix` binary and outbound access to the upstream repositories (directly or through a proxy). `podman` or `docker` only for `--verify-install`. |
 | Offline | The `packtrix` binary (for `import`); any static web server to serve the files |

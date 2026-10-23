@@ -62,7 +62,7 @@ There are three kinds:
 
 ## Dependency resolution
 
-For each target, Packtrix runs the distro's own resolver (`apt` or `dnf`) inside a throwaway container of that distro. It then records exactly what that resolver would install. See [Architecture](architecture.md#resolution).
+For each target, Packtrix computes every package the machines need from the repositories' own metadata: the listed packages and their dependencies, minus what the baseline already provides. It follows the rules `apt` and `dnf` apply, and its results are checked against them. It needs no container runtime. See [Architecture](architecture.md#resolution).
 
 ### Baseline
 
@@ -70,7 +70,7 @@ A dependency closure is always relative to what the machine already has. The **b
 
 | Baseline | Meaning | Use it when |
 |---|---|---|
-| `minimal` *(default)* | A minimal installation of the distro is assumed. What it already contains isn't downloaded unless you list it. | Machines are installed from the distro's own media |
+| `minimal` *(default)* | A minimal installation of the distro, at its release versions, is assumed. What it already contains isn't downloaded unless you list it. | Machines are installed from the distro's own media |
 | `none` | Nothing is assumed. Everything down to the C library is included. | The offline repository must also patch the base system |
 | `lock:<file>` | The exact package set of a discovered host | You want only what one specific host is missing *(planned, see discovery)* |
 

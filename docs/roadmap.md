@@ -10,35 +10,48 @@
 - [ ] Feedback from real air-gapped environments
 - [ ] Decide the [open questions](#open-questions) that block Phase 1
 
-## Phase 1: First end-to-end slice
+## Phase 1: APT end to end (v0.1.0)
 
-Goal: one manifest produces working, signed APT and RPM repositories on a local disk.
+Goal: one manifest produces working, signed APT repositories on a local disk, for Ubuntu and Debian.
 
 - Manifest parsing, defaults, validation, JSON Schema
-- Catalog: `ubuntu-22.04`, `ubuntu-24.04`, `debian-12`, `debian-13`, `rocky-9`, `almalinux-9`
-- Container-based resolution for APT and RPM
+- Catalog: `ubuntu-22.04`, `ubuntu-24.04`, `debian-12`, `debian-13`
+- Dependency resolution in Go for APT, checked nightly against `apt`
 - Download, upstream signature verification, content-addressed pool
-- APT and RPM metadata subsetting and signing
+- APT metadata subsetting and signing
 - `packtrix.lock`
+- Generated client files (`clients/`) and keys (`keys/`)
 - Commands: `init`, `validate`, `render`, `plan`, `sync`
 - Integration tests: install from the generated repositories in clean containers of each distro
 
-## Phase 2: Air gap and updates
+RPM targets are valid in a manifest, but `plan` reports them as not supported yet.
+
+## Phase 2: RPM (v0.2.0)
+
+Goal: the same manifest also produces working, signed RPM repositories, with the same resolver and pipeline.
+
+- Catalog: `rocky-9`, `almalinux-9`
+- Dependency resolution in Go for RPM: capabilities, file dependencies, boolean dependencies, EL8 modules. Checked nightly against `dnf`.
+- Package signature verification against the vendors' keys
+- RPM metadata subsetting and signing, and `.repo` client files
+- Integration tests for each distro
+
+## Phase 3: Air gap and updates (v0.3.0)
 
 - Snapshots, atomic publication, rollback, garbage collection
 - `export` and `import` with full and delta bundles, `splitSize`
 - `check`, lockfile diffs in `plan`, `updates.accept: security`, `minAge`
-- Generated client files (`clients/`)
 - `serve`
+- `sync --verify-install`
 
-## Phase 3: Catalog growth
+## Phase 4: Catalog growth (v0.4.0)
 
 - Vendor repositories with auto-detection: `docker`, `kubernetes@<minor>`, `cri-o@<minor>`, `nvidia-container-toolkit`, `epel-<major>`
 - More distros: Rocky/Alma 8 and 10, CentOS Stream, RHEL (with subscription `auth`), Ubuntu 26.04
 - `arm64`
 - Nightly catalog checks in CI; `catalog update`; signed catalog releases
 
-## Phase 4: Discovery
+## Phase 5: Discovery
 
 - `packtrix discover` for the local machine and over SSH
 - Reproduce mode (pinned versions, using snapshot archives such as `snapshot.debian.org` and `snapshot.ubuntu.com` when old versions are gone) and maintain mode (newest versions)
@@ -48,7 +61,7 @@ Goal: one manifest produces working, signed APT and RPM repositories on a local 
 
 - Kubernetes: a `CronJob` example first; an operator only if real users need it
 - Bundles as OCI artifacts, to travel through registries next to container images
-- In-process resolver (libsolv) for build machines without a container runtime
+- A libsolv-based resolver, if the built-in closure meets cases it can't handle
 - Locally built packages added to the output (`createrepo_c`)
 - Organization catalogs
 

@@ -16,7 +16,7 @@ Packtrix runs in two places:
 └──────────────────────────────────────┘           └──────────────────────────────┘
 ```
 
-- **Connected side:** Linux with `podman` or `docker`, used for dependency resolution. This is where the manifest, the lockfile and the downloads live.
+- **Connected side:** the `packtrix` binary, with access to the upstream repositories. This is where the manifest, the lockfile and the downloads live.
 - **Offline side:** only the `packtrix` binary to import bundles. Any web server can serve the result.
 
 ## Commands
@@ -27,7 +27,7 @@ Packtrix runs in two places:
 | `packtrix validate` | both | Check the manifest without network access |
 | `packtrix render` | connected | Print the fully expanded manifest: every built-in name replaced by its URLs, components and key fingerprints |
 | `packtrix plan` | connected | Resolve dependencies, write `packtrix.lock`, and print what changes and how much will be downloaded |
-| `packtrix sync` | connected | Carry out the lockfile: download, verify, build a snapshot, validate it, publish it |
+| `packtrix sync` | connected | Carry out the lockfile: download, verify, build a snapshot, publish it. With `--verify-install`, first test-install it in containers. |
 | `packtrix check` | connected | A cheap check of whether any upstream repository changed. Exit code `0` = no change, `2` = changes, `1` = error. |
 | `packtrix export` | connected | Write a bundle: full, or `--since <old lockfile>` for a delta |
 | `packtrix import` | offline | Verify a bundle and add it as a new snapshot |

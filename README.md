@@ -78,7 +78,7 @@ $ packtrix validate -f examples/mixed-fleet.yaml -o yaml   # print it with every
 ```
 
 - **One manifest for APT and RPM.** You name the distros, and Packtrix already knows their official repositories and signing keys.
-- **Native dependency resolution.** `apt` and `dnf` do the resolving, inside throwaway containers of each target distro, so the result matches what the machines would choose themselves.
+- **Dependency resolution built in.** Packtrix resolves dependencies from the repositories' own metadata, following the rules `apt` and `dnf` apply. It's a single binary: no container runtime, no `apt` or `dnf` needed.
 - **Vendor repositories are added automatically.** Docker, Kubernetes, NVIDIA, EPEL and others are added when a package needs them, and the plan always shows it.
 - **Every change is reviewable.** A lockfile records exactly what entered the air gap. Updates show up as a diff and ship as delta bundles.
 - **Plain output.** The result is standard, signed APT and RPM repositories, with no agent or plugin on the machines.

@@ -31,7 +31,7 @@ spec:
 ### Design principles
 
 1. **One manifest for APT and RPM.** The package list is written once. Differences between formats are per-package exceptions, not separate sections.
-2. **Native resolution.** `apt` and `dnf` resolve dependencies. Packtrix never implements its own dependency solver.
+2. **Built-in resolution, checked against `apt` and `dnf`.** Packtrix resolves dependencies itself, from the repositories' metadata, following the rules `apt` and `dnf` apply. It needs no container runtime, and its results are checked against the real tools.
 3. **Complete or nothing.** If a package or one of its dependencies can't be resolved for a target, `plan` fails and names the package, the target and the reason. A partial repository is never published.
 4. **Everything that crosses the air gap is recorded.** The lockfile lists every package, version, checksum and source.
 5. **Standard output.** Plain APT and RPM repositories. Machines need no agent, plugin or special client.
