@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-baseURL: https://packtrix.github.io/packtrix/
+baseURL: https://packtrix.github.io/
 locale: en-US
 title: Packtrix
 enableGitInfo: false

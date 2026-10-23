@@ -19,7 +19,7 @@ $ make build                        # build bin/packtrix; GOOS=linux GOARCH=arm6
 $ go test ./...                     # run the tests
 $ make lint                         # golangci-lint, configured in .golangci.yml
 $ make update-codegen               # regenerate zz_generated.*.go after changing API types
-$ make site-serve                   # preview the website at http://localhost:1313/packtrix/
+$ make site-serve                   # preview the website at http://localhost:1313/
 ```
 
 The code is organized as follows:

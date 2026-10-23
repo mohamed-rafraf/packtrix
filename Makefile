@@ -69,8 +69,7 @@ $(GOLANGCI_LINT):
 site: $(HUGO)
 	$(HUGO) --source site --minify $(if $(SITE_BASE_URL),--baseURL $(SITE_BASE_URL))
 
-# Serves the website at http://localhost:1313/packtrix/ and rebuilds it on
-# every change.
+# Serves the website at http://localhost:1313/ and rebuilds it on every change.
 .PHONY: site-serve
 site-serve: $(HUGO)
 	$(HUGO) server --source site
