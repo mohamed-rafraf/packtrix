@@ -154,8 +154,9 @@ Implemented:
 cmd/packtrix/                   binary entry point
 internal/cli/                   commands (cobra)
 internal/version/               build information
-internal/deb/                   Debian versions and how they sort, dependency fields, version constraints
+internal/deb/                   Debian versions and how they sort, dependency fields, Packages indexes, version constraints
 internal/resolve/               dependency closure, independent of the package format
+internal/resolve/apt/           APT dependency model
 pkg/apis/packtrix/              internal manifest API, used by the rest of Packtrix
 pkg/apis/packtrix/v1alpha1/     manifest format v1alpha1: types, defaults, generated conversions
 pkg/apis/packtrix/scheme/       registers every API version
@@ -169,7 +170,7 @@ Planned:
 
 ```
 internal/catalog/      built-in distros and vendor repositories, auto-detection
-internal/resolve/      APT and RPM dependency models, baselines
+internal/resolve/      RPM dependency model, baselines
 internal/fetch/        download, verification, content-addressed pool
 internal/repo/apt/     APT metadata subsetting and signing
 internal/repo/rpm/     RPM metadata subsetting and signing

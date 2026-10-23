@@ -17,6 +17,7 @@ You need Go 1.26 or newer.
 ```console
 $ make build                        # build bin/packtrix; GOOS=linux GOARCH=arm64 to cross-compile
 $ make test                         # run the tests, with the race detector
+$ make test-live                    # run the tests that download from upstream repositories
 $ make lint                         # golangci-lint, configured in .golangci.yml
 $ make update-codegen               # regenerate zz_generated.*.go after changing API types
 $ make site-serve                   # preview the website at http://localhost:1313/
@@ -29,8 +30,9 @@ The code is organized as follows:
 |---|---|
 | `cmd/packtrix/` | The binary's entry point |
 | `internal/cli/` | The commands |
-| `internal/deb/` | Debian versions, dependency fields and version constraints |
+| `internal/deb/` | Debian versions, dependency fields, Packages indexes and version constraints |
 | `internal/resolve/` | The dependency closure, which doesn't know APT or RPM |
+| `internal/resolve/apt/` | The APT dependency model: which packages satisfy a dependency |
 | `pkg/apis/packtrix/` | The internal manifest API, which the rest of Packtrix uses |
 | `pkg/apis/packtrix/v1alpha1/` | The `v1alpha1` manifest format: types, defaults, conversion to the internal API |
 | `pkg/apis/packtrix/scheme/` | Registers every API version |

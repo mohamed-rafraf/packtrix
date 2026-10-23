@@ -16,7 +16,8 @@ limitations under the License.
 
 // Package deb implements the parts of the Debian package format that
 // dependency resolution needs: versions and how they sort, dependency fields
-// such as Depends and Provides, and the version constraints of a manifest.
+// such as Depends and Provides, the packages of a Packages index, and the
+// version constraints of a manifest.
 package deb
 
 import (

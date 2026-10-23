@@ -54,9 +54,15 @@ $(LOCALBIN)/%: FORCE
 clean:
 	rm -rf $(LOCALBIN)
 
+# Skips the tests that download from live upstream repositories.
 .PHONY: test
 test:
-	go test -race -coverprofile=coverage.out ./...
+	go test -race -short -coverprofile=coverage.out ./...
+
+# Runs only the tests that download from live upstream repositories.
+.PHONY: test-live
+test-live:
+	go test -race -run '^TestLive' ./...
 
 # Fails, showing the difference, if go.mod or go.sum aren't tidy.
 .PHONY: verify-gomod
