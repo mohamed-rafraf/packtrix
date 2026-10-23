@@ -43,3 +43,6 @@ go.work.sum
 /site/public/
 /site/resources/_gen/
 /site/.hugo_build.lock
+
+# private keys
+*.pem

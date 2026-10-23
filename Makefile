@@ -54,6 +54,19 @@ $(LOCALBIN)/%: FORCE
 clean:
 	rm -rf $(LOCALBIN)
 
+.PHONY: test
+test:
+	go test -race -coverprofile=coverage.out ./...
+
+# Fails, showing the difference, if go.mod or go.sum aren't tidy.
+.PHONY: verify-gomod
+verify-gomod:
+	go mod tidy -diff
+
+# Runs every check that pull requests run.
+.PHONY: verify
+verify: verify-boilerplate verify-codegen verify-gomod lint test
+
 .PHONY: lint
 lint: $(GOLANGCI_LINT)
 	$(GOLANGCI_LINT) run ./...

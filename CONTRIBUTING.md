@@ -16,10 +16,11 @@ You need Go 1.26 or newer.
 
 ```console
 $ make build                        # build bin/packtrix; GOOS=linux GOARCH=arm64 to cross-compile
-$ go test ./...                     # run the tests
+$ make test                         # run the tests, with the race detector
 $ make lint                         # golangci-lint, configured in .golangci.yml
 $ make update-codegen               # regenerate zz_generated.*.go after changing API types
 $ make site-serve                   # preview the website at http://localhost:1313/
+$ make verify                       # every check pull requests run: run it before pushing
 ```
 
 The code is organized as follows:
@@ -44,7 +45,7 @@ The files in `examples/` are loaded by the tests, so they must always stay valid
 `main` is protected:
 
 - Every change goes through a **pull request** from a fork. Direct pushes, force pushes and branch deletion are blocked.
-- The checks `pull-boilerplate`, `pull-verify-codegen` and `pull-lint` must pass.
+- The checks `pull-boilerplate`, `pull-verify-codegen`, `pull-lint`, `pull-test` and `pull-build` must pass. `make verify` runs the same checks locally.
 - Pull requests are **squash-merged**, so each one becomes a single commit on `main`.
 - All review conversations must be resolved before merging.
 
