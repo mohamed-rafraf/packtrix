@@ -29,6 +29,7 @@ The code is organized as follows:
 |---|---|
 | `cmd/packtrix/` | The binary's entry point |
 | `internal/cli/` | The commands |
+| `internal/deb/` | Debian versions, dependency fields and version constraints |
 | `pkg/apis/packtrix/` | The internal manifest API, which the rest of Packtrix uses |
 | `pkg/apis/packtrix/v1alpha1/` | The `v1alpha1` manifest format: types, defaults, conversion to the internal API |
 | `pkg/apis/packtrix/scheme/` | Registers every API version |

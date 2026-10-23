@@ -133,6 +133,7 @@ Implemented:
 cmd/packtrix/                   binary entry point
 internal/cli/                   commands (cobra)
 internal/version/               build information
+internal/deb/                   Debian versions and how they sort, dependency fields, version constraints
 pkg/apis/packtrix/              internal manifest API, used by the rest of Packtrix
 pkg/apis/packtrix/v1alpha1/     manifest format v1alpha1: types, defaults, generated conversions
 pkg/apis/packtrix/scheme/       registers every API version
