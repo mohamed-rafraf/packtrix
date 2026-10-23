@@ -1,0 +1,10 @@
+{{- /* Space Grotesk is served from the site itself, not from a font CDN. */ -}}
+<link rel="preload" href="{{ "fonts/space-grotesk.woff2" | relURL }}" as="font" type="font/woff2" crossorigin />
+<style>
+  @font-face {
+    font-family: "Space Grotesk";
+    src: url("{{ "fonts/space-grotesk.woff2" | relURL }}") format("woff2");
+    font-weight: 400 700;
+    font-display: swap;
+  }
+</style>

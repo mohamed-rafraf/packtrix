@@ -95,6 +95,8 @@ Packtrix doesn't mirror whole distributions, cache packages for connected networ
 
 ## Documentation
 
+The documentation is also on the website: **[packtrix.github.io/packtrix](https://packtrix.github.io/packtrix/)**.
+
 | Document | Contents |
 |---|---|
 | [Overview](docs/overview.md) | The problem, goals, use cases, related tools |

@@ -19,6 +19,7 @@ $ make build                        # build bin/packtrix; GOOS=linux GOARCH=arm6
 $ go test ./...                     # run the tests
 $ make lint                         # golangci-lint, configured in .golangci.yml
 $ make update-codegen               # regenerate zz_generated.*.go after changing API types
+$ make site-serve                   # preview the website at http://localhost:1313/packtrix/
 ```
 
 The code is organized as follows:
@@ -32,6 +33,7 @@ The code is organized as follows:
 | `pkg/apis/packtrix/scheme/` | Registers every API version |
 | `pkg/apis/packtrix/validation/` | Validation of the internal API |
 | `pkg/apis/packtrix/manifest/` | Reading and writing manifest files |
+| `site/` | The website: a Hugo site that renders `docs/` and adds the landing page |
 
 A change to the manifest format changes the types in both `pkg/apis/packtrix/` and `v1alpha1/`. Defaults go in `v1alpha1/defaults.go` as `SetDefaults_<Type>` functions. Then run `make update-codegen` and commit the generated files; pull requests check that they are up to date. Never edit `zz_generated.*.go` by hand.
 
