@@ -51,6 +51,27 @@ The resolver's output is a list of `(name, version, architecture, source reposit
 | `Multi-Arch` and `Architecture: all` | Modular content on EL8: packages of streams that aren't enabled are hidden, as `dnf` hides them |
 | `Recommends`, when `resolve.recommends` is on | Weak dependencies, when `resolve.recommends` is on; `Obsoletes` |
 
+### The engine and the models
+
+The closure loop, in `internal/resolve`, knows no package format. It runs once per target and architecture, on packages that are exact versions, and asks a **model** for two things: what a package needs, and whether the baseline has a package. The APT and RPM models translate their formats into needs:
+
+- A need lists groups of candidates. The model orders each group by preference: a real package before a virtual one, the newest version first. If any candidate is already in the set or the baseline, the need is satisfied. Otherwise the engine adds the first candidate of the first non-empty group, or of every group with `alternatives: all`.
+- A need can have a condition: a list of packages. It only applies once the set or the baseline contains one of them, even if that happens later in the loop.
+- A need without any candidate is a failure. The engine collects every failure with its path from the listed package, and records why each package is in the set, such as `libfoo1 ← nginx ← listed`.
+
+| Dependency | Need |
+|---|---|
+| APT `Depends: a (>= 1) \| b` | One group for `a`: its versions from 1 on, then the packages that provide `a`. Then one group for `b` |
+| APT `Breaks: libfoo (<< 2.0)` | Condition: the versions of `libfoo` before 2.0. Candidate: the newest `libfoo` |
+| RPM `Requires: libcrypto.so.3()(64bit)` | One group: the packages that provide the capability |
+| RPM `Requires: /usr/bin/python3` | One group: the packages whose file list contains the path |
+| RPM `(a or b)` | Two groups, as for APT's `a \| b` |
+| RPM `(a and b)` | Two needs |
+| RPM `(x if y)` | Condition: the packages that provide `y`. Candidates: those that provide `x` |
+| RPM `(x unless y)` | `x`, without a condition: the engine has no negative condition, so it includes rather than omits |
+
+So the RPM model plugs in without changing the engine.
+
 ### Baselines from metadata
 
 The baseline is computed from the target's own metadata, at the versions of the distro's **release**, not its latest updates:
@@ -134,6 +155,7 @@ cmd/packtrix/                   binary entry point
 internal/cli/                   commands (cobra)
 internal/version/               build information
 internal/deb/                   Debian versions and how they sort, dependency fields, version constraints
+internal/resolve/               dependency closure, independent of the package format
 pkg/apis/packtrix/              internal manifest API, used by the rest of Packtrix
 pkg/apis/packtrix/v1alpha1/     manifest format v1alpha1: types, defaults, generated conversions
 pkg/apis/packtrix/scheme/       registers every API version
@@ -147,7 +169,7 @@ Planned:
 
 ```
 internal/catalog/      built-in distros and vendor repositories, auto-detection
-internal/resolve/      dependency closure; APT and RPM dependency models, baselines
+internal/resolve/      APT and RPM dependency models, baselines
 internal/fetch/        download, verification, content-addressed pool
 internal/repo/apt/     APT metadata subsetting and signing
 internal/repo/rpm/     RPM metadata subsetting and signing
