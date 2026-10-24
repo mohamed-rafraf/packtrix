@@ -31,8 +31,10 @@ The code is organized as follows:
 | `cmd/packtrix/` | The binary's entry point |
 | `internal/cli/` | The commands |
 | `internal/deb/` | Debian versions, dependency fields, Packages indexes and version constraints |
+| `internal/pgp/` | OpenPGP: verifying upstream signatures against pinned keys, signing the published repositories |
 | `internal/resolve/` | The dependency closure, which doesn't know APT or RPM |
 | `internal/resolve/apt/` | The APT dependency model: which packages satisfy a dependency |
+| `internal/secret/` | Reading the secrets a manifest references, such as the signing key |
 | `pkg/apis/packtrix/` | The internal manifest API, which the rest of Packtrix uses |
 | `pkg/apis/packtrix/v1alpha1/` | The `v1alpha1` manifest format: types, defaults, conversion to the internal API |
 | `pkg/apis/packtrix/scheme/` | Registers every API version |
