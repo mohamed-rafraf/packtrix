@@ -18,6 +18,8 @@ Packtrix sits on the supply chain of every machine it serves. This page describe
 | **APT** | The signed `InRelease` file lists hashes of the `Packages` indexes, which list hashes of each `.deb`. Individual `.deb` files are not signed. | The `InRelease` signature against the pinned key, then each index hash, then each `.deb` hash |
 | **RPM** | Each `.rpm` carries an embedded GPG signature. Most distributions don't sign `repomd.xml`. | Each package's signature against the pinned key, then each file hash against the metadata |
 
+A signature only counts if it was made by a pinned key that is still valid: Packtrix, like `apt`, rejects signatures by keys that have since expired or been revoked, SHA-1 signatures, and DSA and ElGamal keys. An `InRelease` file must contain nothing outside its signed part.
+
 If any check fails, `sync` stops and nothing is published.
 
 ## Signing the published repositories
@@ -35,7 +37,7 @@ The client files Packtrix generates set this up correctly for each format.
 
 - Referenced from the manifest (`publish.signing.key`), never embedded in it: `env:VAR` or `file:/path`. Support for key management services is planned.
 - Signing is done in-process (Go OpenPGP), with no `gpg` binary or agent required.
-- Use RSA-3072 or RSA-4096 with SHA-256 or stronger digests. RHEL 9 rejects SHA-1 signatures, and current `apt` warns about weak keys.
+- It must be an OpenPGP version 4 key, RSA of at least 3072 bits or Ed25519, valid, and not protected by a passphrase (passphrases are planned). Packtrix signs with SHA-512. RHEL 9 rejects SHA-1 signatures, current `apt` warns about weak keys, and the `gpgv` that `apt` runs can't verify version 6 keys.
 - **Rotation:** machines pin your key with `Signed-By`/`gpgkey`. To rotate, publish signatures from both the old and new keys during an overlap period, update the client files, then retire the old key.
 - **Expiry:** Packtrix doesn't set `Valid-Until` on the `Release` files it publishes. An offline repository that "expires" after a week would break machines that can't fetch a new one. Upstream `Valid-Until` values are ignored for content that has already been verified at sync time.
 
