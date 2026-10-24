@@ -172,7 +172,7 @@ Versions are compared with each format's native rules (`dpkg` ordering for deb; 
 | `baseline` | `minimal` | `minimal`, `none`, or `lock:<path>`. See [baseline](concepts.md#baseline). |
 | `recommends` | `false` | Include APT `Recommends` and RPM weak dependencies |
 | `alternatives` | `first` | For APT `a \| b` dependencies: `first` or `all` |
-| `exclude` | `[]` | Packages never to download. Exact semantics are an [open question](roadmap.md#open-questions). |
+| `exclude` | `[]` | Packages that the machines get some other way, such as a driver installed by hand. They satisfy every dependency on them, at any version, and are never downloaded; `plan` lists the packages that need them. A package that is listed is still downloaded. |
 
 ## `spec.updates`
 

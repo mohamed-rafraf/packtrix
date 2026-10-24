@@ -34,6 +34,7 @@ func TestParsePackage(t *testing.T) {
 	p, err := parsePackage(t, `Package: libcurl4t64
 Architecture: amd64
 Version: 8.5.0-2ubuntu10.6
+Priority: optional
 Multi-Arch: same
 Provides: libcurl4 (= 8.5.0-2ubuntu10.6)
 Pre-Depends: libc6 (>= 2.34)
@@ -47,9 +48,13 @@ Filename: pool/main/c/curl/libcurl4t64_8.5.0-2ubuntu10.6_amd64.deb
 	if err != nil {
 		t.Fatal(err)
 	}
+	if p.Essential {
+		t.Error("Essential is set, want it unset without an Essential field")
+	}
 	for _, tt := range []struct{ field, got, want string }{
 		{"String", p.String(), "libcurl4t64=8.5.0-2ubuntu10.6"},
 		{"Architecture", p.Architecture, "amd64"},
+		{"Priority", p.Priority, "optional"},
 		{"Provides", Alternatives(p.Provides).String(), "libcurl4 (= 8.5.0-2ubuntu10.6)"},
 		{"Pre-Depends", format(p.PreDepends), "libc6 (>= 2.34)"},
 		{"Depends", format(p.Depends), "libbrotli1 (>= 0.6.0), libgssapi-krb5-2 (>= 1.17), libssl3t64 (>= 3.0.0)"},
@@ -60,6 +65,16 @@ Filename: pool/main/c/curl/libcurl4t64_8.5.0-2ubuntu10.6_amd64.deb
 		if tt.got != tt.want {
 			t.Errorf("%s = %q, want %q", tt.field, tt.got, tt.want)
 		}
+	}
+}
+
+func TestParsePackageEssential(t *testing.T) {
+	p, err := parsePackage(t, "Package: dpkg\nArchitecture: amd64\nVersion: 1.22.6ubuntu6\nEssential: yes\nPriority: required\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.Essential || p.Priority != "required" {
+		t.Errorf("Essential = %t, Priority = %q, want an essential, required package", p.Essential, p.Priority)
 	}
 }
 

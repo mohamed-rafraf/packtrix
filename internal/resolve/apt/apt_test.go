@@ -436,3 +436,70 @@ func TestIndexKeepsFirstRepository(t *testing.T) {
 		t.Errorf("curl versions = %v, want the updates one, then the release one", got)
 	}
 }
+
+func TestExclude(t *testing.T) {
+	ix := index(t, `
+Package: app
+Version: 1.0
+Pre-Depends: libfoo
+Depends: libfoo (>= 1.0), libbar | libbaz, mail-transport-agent, nvidia-driver (>= 550), libc6
+Recommends: libfoo-doc
+Breaks: libold (<< 2.0)
+
+Package: tool
+Version: 1.0
+Depends: libfoo
+
+Package: libfoo
+Version: 1.2
+
+Package: libfoo-doc
+Version: 1.2
+
+Package: libbar
+Version: 1.0
+
+Package: libbaz
+Version: 1.0
+
+Package: postfix
+Version: 3.8.6
+Provides: mail-transport-agent
+
+Package: libold
+Version: 1.0
+
+Package: libold
+Version: 2.0
+
+Package: libc6
+Version: 2.39
+`)
+	opts := Options{Recommends: true, Exclude: []string{"libfoo", "libfoo-doc", "libbaz", "postfix", "nvidia-driver", "libold"}}
+	m := NewModel(ix, []*deb.Package{pick(t, ix, "libold=1.0")}, opts)
+	result, err := resolve.Closure(m, []*deb.Package{pick(t, ix, "app"), pick(t, ix, "tool"), pick(t, ix, "libbaz")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An excluded package satisfies a dependency on it, at any version, even
+	// when the index doesn't have it; one alternative or provider is enough.
+	// A listed package is included although it is excluded.
+	if got, want := names(result.Packages), []string{"app=1.0", "tool=1.0", "libbaz=1.0", "libc6=2.39"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("closure = %q, want %q", got, want)
+	}
+
+	var got []string
+	for _, e := range m.Excluded() {
+		got = append(got, e.Name+" ← "+strings.Join(names(e.NeededBy), ", "))
+	}
+	want := []string{
+		"libbaz ← app=1.0",
+		"libfoo ← app=1.0, tool=1.0",
+		"libfoo-doc ← app=1.0",
+		"nvidia-driver ← app=1.0",
+		"postfix ← app=1.0",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Excluded = %q, want %q", got, want)
+	}
+}
