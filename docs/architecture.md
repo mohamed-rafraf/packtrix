@@ -76,7 +76,7 @@ So the RPM model plugs in without changing the engine.
 
 The baseline is computed from the target's own metadata, at the versions of the distro's **release**, not its latest updates:
 
-- **`minimal`, APT:** `Essential` packages and those with `Priority: required` or `important`, which is what the distro's installer puts on a minimal system.
+- **`minimal`, APT:** `Essential` packages and those with `Priority: required` or `important`, plus their dependencies, which is what the distro's installer puts on a minimal system. They come from the release suite's `main` component, such as `noble/main`.
 - **`minimal`, RPM:** the `@core` group from the repositories' `comps.xml`.
 - **`none`:** nothing.
 - **`lock:<file>`:** the package list of a discovered host, at its exact versions.

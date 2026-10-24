@@ -49,16 +49,22 @@ type provider struct {
 	version *deb.Version
 }
 
+// key identifies a package across indexes.
+type key struct{ name, version, arch string }
+
+func keyOf(p *deb.Package) key {
+	return key{p.Name, p.Version.String(), p.Architecture}
+}
+
 // NewIndex indexes the packages of architecture arch, such as "amd64", and of
 // "all"; it leaves out the others. When several repositories have the same
 // version of a package, it keeps the first, so pass the repositories' packages
 // in order of preference.
 func NewIndex(arch string, packages []*deb.Package) *Index {
 	ix := &Index{arch: arch, packages: map[string][]*deb.Package{}, providers: map[string][]provider{}}
-	type key struct{ name, version, arch string }
 	seen := map[key]bool{}
 	for _, p := range packages {
-		k := key{p.Name, p.Version.String(), p.Architecture}
+		k := keyOf(p)
 		if p.Architecture != arch && p.Architecture != "all" || seen[k] {
 			continue
 		}
@@ -153,35 +159,68 @@ type Options struct {
 	// AllAlternatives adds a package for every alternative of "a | b", not
 	// only for the first one that something satisfies.
 	AllAlternatives bool
+	// Exclude names packages that the machines get some other way: they
+	// satisfy every dependency on them, at any version, and are never added.
+	// A listed package is added even when it is excluded.
+	Exclude []string
+}
+
+// Exclusion is an excluded package that packages of the closure need.
+type Exclusion struct {
+	Name     string
+	NeededBy []*deb.Package
 }
 
 // Model is the dependency model of one APT target and architecture.
 type Model struct {
-	index    *Index
-	baseline map[*deb.Package]bool
-	opts     Options
+	index      *Index
+	baseline   map[key]bool
+	opts       Options
+	exclude    map[string]bool
+	exclusions map[string]*Exclusion
 }
 
 var _ resolve.Model[*deb.Package] = (*Model)(nil)
 
 // NewModel returns the model of the packages in index, for machines that
-// already have the baseline's packages, which come from the same index.
+// already have the baseline's packages.
 func NewModel(index *Index, baseline []*deb.Package, opts Options) *Model {
-	m := &Model{index: index, baseline: map[*deb.Package]bool{}, opts: opts}
+	m := &Model{
+		index:      index,
+		baseline:   map[key]bool{},
+		opts:       opts,
+		exclude:    map[string]bool{},
+		exclusions: map[string]*Exclusion{},
+	}
 	for _, p := range baseline {
-		m.baseline[p] = true
+		m.baseline[keyOf(p)] = true
+	}
+	for _, name := range opts.Exclude {
+		m.exclude[name] = true
 	}
 	return m
 }
 
 // InBaseline reports whether the machines already have p.
 func (m *Model) InBaseline(p *deb.Package) bool {
-	return m.baseline[p]
+	return m.baseline[keyOf(p)]
+}
+
+// Excluded returns the excluded packages that the packages passed to Needs
+// depend on, by name.
+func (m *Model) Excluded() []Exclusion {
+	out := make([]Exclusion, 0, len(m.exclusions))
+	for _, e := range m.exclusions {
+		out = append(out, *e)
+	}
+	slices.SortFunc(out, func(a, b Exclusion) int { return strings.Compare(a.Name, b.Name) })
+	return out
 }
 
 // Needs returns the dependencies of p that the machines' apt installs:
 // Pre-Depends and Depends, and Recommends when Options.Recommends is set. A
-// Recommends that nothing satisfies is left out, as apt ignores it.
+// Recommends that nothing satisfies is left out, as apt ignores it. So is a
+// dependency that an excluded package satisfies.
 //
 // A Breaks or Conflicts on older versions of a package that has a newer one
 // becomes a need for the newest version, conditioned on the older ones: if
@@ -189,12 +228,14 @@ func (m *Model) InBaseline(p *deb.Package) bool {
 func (m *Model) Needs(p *deb.Package) ([]resolve.Need[*deb.Package], error) {
 	var needs []resolve.Need[*deb.Package]
 	for _, alts := range slices.Concat(p.PreDepends, p.Depends) {
-		needs = append(needs, m.need(alts))
+		if n, ok := m.need(p, alts); ok {
+			needs = append(needs, n)
+		}
 	}
 	if m.opts.Recommends {
 		for _, alts := range p.Recommends {
-			n := m.need(alts)
-			if slices.ContainsFunc(n.Alternatives, func(group []*deb.Package) bool { return len(group) > 0 }) {
+			n, ok := m.need(p, alts)
+			if ok && slices.ContainsFunc(n.Alternatives, func(group []*deb.Package) bool { return len(group) > 0 }) {
 				needs = append(needs, n)
 			}
 		}
@@ -214,21 +255,45 @@ func (m *Model) Needs(p *deb.Package) ([]resolve.Need[*deb.Package], error) {
 	return needs, nil
 }
 
-func (m *Model) need(alts deb.Alternatives) resolve.Need[*deb.Package] {
+// need returns the need for one dependency of p, or false when an excluded
+// package satisfies it.
+func (m *Model) need(p *deb.Package, alts deb.Alternatives) (resolve.Need[*deb.Package], bool) {
 	n := resolve.Need[*deb.Package]{Text: alts.String(), All: m.opts.AllAlternatives}
 	for _, r := range alts {
-		n.Alternatives = append(n.Alternatives, m.index.candidates(r))
+		group := m.index.candidates(r)
+		names := []string{r.Name}
+		for _, c := range group {
+			names = append(names, c.Name)
+		}
+		if i := slices.IndexFunc(names, func(name string) bool { return m.exclude[name] }); i >= 0 {
+			m.excluded(names[i], p)
+			return n, false
+		}
+		n.Alternatives = append(n.Alternatives, group)
 	}
-	return n
+	return n, true
+}
+
+// excluded records that p depends on the excluded package name.
+func (m *Model) excluded(name string, p *deb.Package) {
+	e := m.exclusions[name]
+	if e == nil {
+		e = &Exclusion{Name: name}
+		m.exclusions[name] = e
+	}
+	if !slices.Contains(e.NeededBy, p) {
+		e.NeededBy = append(e.NeededBy, p)
+	}
 }
 
 // upgrade returns the need for the newest version of the package that r
 // names, when r doesn't match that version but matches older ones. An
 // unversioned Breaks or Conflicts can't be avoided by upgrading: apt removes
-// the package instead, and nothing needs to be downloaded.
+// the package instead, and nothing needs to be downloaded. Neither is an
+// excluded package upgraded.
 func (m *Model) upgrade(field string, r deb.Relation) (resolve.Need[*deb.Package], bool) {
 	versions := m.index.packages[r.Name]
-	if r.Op == deb.OpNone || !m.index.native(r.Arch) || len(versions) == 0 || r.SatisfiedBy(versions[0].Version) {
+	if r.Op == deb.OpNone || m.exclude[r.Name] || !m.index.native(r.Arch) || len(versions) == 0 || r.SatisfiedBy(versions[0].Version) {
 		return resolve.Need[*deb.Package]{}, false
 	}
 	var broken []*deb.Package

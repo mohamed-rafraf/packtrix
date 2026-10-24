@@ -71,13 +71,14 @@ A dependency closure is always relative to what the machine already has. The **b
 | Baseline | Meaning | Use it when |
 |---|---|---|
 | `minimal` *(default)* | A minimal installation of the distro, at its release versions, is assumed. What it already contains isn't downloaded unless you list it. | Machines are installed from the distro's own media |
-| `none` | Nothing is assumed. Everything down to the C library is included. | The offline repository must also patch the base system |
+| `none` | Nothing is assumed. Everything down to the C library is included. | The offline repository must also patch the base system, or machines start from container images, which have less than a minimal installation |
 | `lock:<file>` | The exact package set of a discovered host | You want only what one specific host is missing *(planned, see discovery)* |
 
 ### Other resolution settings
 
 - **Recommended packages** (APT `Recommends`, RPM weak dependencies) are off by default.
 - **Alternatives** (`a | b` in APT): the first alternative is used by default.
+- **Excluded packages** are ones the machines get some other way. They satisfy every dependency on them and are never downloaded; `plan` lists the packages that need them.
 
 ## Lockfile
 

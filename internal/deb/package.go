@@ -27,12 +27,17 @@ type Package struct {
 	Name         string
 	Version      Version
 	Architecture string
-	Provides     []Relation
-	PreDepends   []Alternatives
-	Depends      []Alternatives
-	Recommends   []Alternatives
-	Breaks       []Alternatives
-	Conflicts    []Alternatives
+	// Essential is set for packages that every system has, such as dpkg.
+	Essential bool
+	// Priority is "required", "important", "standard", "optional" or
+	// "extra", or empty.
+	Priority   string
+	Provides   []Relation
+	PreDepends []Alternatives
+	Depends    []Alternatives
+	Recommends []Alternatives
+	Breaks     []Alternatives
+	Conflicts  []Alternatives
 }
 
 // String returns name=version, as apt-get install accepts it.
@@ -42,7 +47,12 @@ func (p *Package) String() string {
 
 // ParsePackage reads a package from its paragraph of a Packages index.
 func ParsePackage(p Paragraph) (*Package, error) {
-	pkg := &Package{Name: p.Get("Package"), Architecture: p.Get("Architecture")}
+	pkg := &Package{
+		Name:         p.Get("Package"),
+		Architecture: p.Get("Architecture"),
+		Essential:    p.Get("Essential") == "yes",
+		Priority:     p.Get("Priority"),
+	}
 	if pkg.Name == "" {
 		return nil, errors.New("paragraph without a Package field")
 	}

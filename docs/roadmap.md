@@ -69,7 +69,7 @@ Goal: the same manifest also produces working, signed RPM repositories, with the
 
 | # | Question | Current leaning |
 |---|---|---|
-| 1 | **What does `exclude` mean** when an excluded package is a dependency of a listed one? | Treat it as "provided by the baseline": don't download it, and report it in `plan` |
+| 1 | **What does `exclude` mean** when an excluded package is a dependency of a listed one? | Decided: it is provided some other way, like the baseline. It satisfies the dependency, isn't downloaded, and `plan` reports it |
 | 2 | **Default for APT alternatives** (`a \| b`) | `first`, with `all` available |
 | 3 | **Per-target version pins**, e.g. different `kubelet` versions per target | Not in v1alpha1; use separate manifests if needed |
 | 4 | **Per-target update policy** | Not in v1alpha1 |

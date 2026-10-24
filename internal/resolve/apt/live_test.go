@@ -65,36 +65,71 @@ func TestLiveUbuntu2404(t *testing.T) {
 	if testing.Short() {
 		t.Skip("downloads the Ubuntu 24.04 indexes")
 	}
+	const archive = "https://archive.ubuntu.com/ubuntu/dists/"
+	release := download(t, archive+"noble/main/binary-amd64/Packages.gz")
 	var packages []*deb.Package
 	for _, suite := range []string{"noble-security", "noble-updates", "noble"} {
 		for _, component := range []string{"main", "universe"} {
-			packages = append(packages, download(t, "https://archive.ubuntu.com/ubuntu/dists/"+suite+"/"+component+"/binary-amd64/Packages.gz")...)
+			if suite == "noble" && component == "main" {
+				packages = append(packages, release...)
+				continue
+			}
+			packages = append(packages, download(t, archive+suite+"/"+component+"/binary-amd64/Packages.gz")...)
 		}
 	}
 	ix := NewIndex("amd64", packages)
+
+	minimal, err := MinimalBaseline("amd64", release)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("minimal baseline: %d packages", len(minimal))
+	inMinimal := map[string]bool{}
+	for _, p := range minimal {
+		inMinimal[p.String()] = true
+	}
+	// The noble suite never changes, so neither do its versions.
+	for _, want := range []string{"libc6=2.39-0ubuntu8", "dpkg=1.22.6ubuntu6", "apt=2.7.14build2"} {
+		if !inMinimal[want] {
+			t.Errorf("the minimal baseline doesn't contain %s", want)
+		}
+	}
 
 	var listed []*deb.Package
 	for _, name := range []string{"curl", "nginx", "docker.io"} {
 		listed = append(listed, pick(t, ix, name))
 	}
-	result, err := resolve.Closure(NewModel(ix, nil, Options{}), listed)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("%d packages from %d in the indexes", len(result.Packages), len(packages))
-
-	found := map[string]*deb.Package{}
-	for _, p := range result.Packages {
-		if found[p.Name] != nil {
-			t.Errorf("two versions of %s: %s and %s", p.Name, found[p.Name], p)
-		}
-		found[p.Name] = p
-	}
-	for _, name := range []string{"libcurl4t64", "libssl3t64", "libc6", "nginx-common", "containerd", "runc", "iptables"} {
-		if p := found[name]; p == nil {
-			t.Errorf("the closure doesn't contain %s", name)
-		} else {
-			t.Log(result.Why(p))
-		}
+	for _, tt := range []struct {
+		baseline string
+		packages []*deb.Package
+		want     []string
+	}{
+		{"none", nil, []string{"libcurl4t64", "libc6", "nginx-common", "containerd", "runc", "iptables"}},
+		{"minimal", minimal, []string{"libcurl4t64", "nginx-common", "containerd", "runc", "iptables"}},
+	} {
+		t.Run(tt.baseline, func(t *testing.T) {
+			result, err := resolve.Closure(NewModel(ix, tt.packages, Options{}), listed)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("%d packages from %d in the indexes", len(result.Packages), len(packages))
+			found := map[string]*deb.Package{}
+			for _, p := range result.Packages {
+				if found[p.Name] != nil {
+					t.Errorf("two versions of %s: %s and %s", p.Name, found[p.Name], p)
+				}
+				found[p.Name] = p
+				if inMinimal[p.String()] && tt.baseline == "minimal" {
+					t.Errorf("%s is in the baseline", p)
+				}
+			}
+			for _, name := range tt.want {
+				if p := found[name]; p == nil {
+					t.Errorf("the closure doesn't contain %s", name)
+				} else {
+					t.Log(result.Why(p))
+				}
+			}
+		})
 	}
 }
