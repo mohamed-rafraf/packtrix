@@ -79,7 +79,36 @@ Rules that keep this predictable:
 
 ## Catalog entry format
 
-Catalog entries use the same fields as custom repositories, pre-filled:
+The catalog lives in [`internal/catalog/`](https://github.com/packtrix/packtrix/tree/main/internal/catalog) and is embedded in the binary: `catalog.yaml` holds its version, `distros/<name>.yaml` one distro each, and `keys/<name>.asc` the keys. A distro entry looks like this:
+
+```yaml
+# internal/catalog/distros/ubuntu-24.04.yaml (excerpt)
+name: ubuntu-24.04
+family: ubuntu                      # ubuntu, debian or el
+format: apt
+release: { version: "24.04", codename: noble }
+architectures: [amd64, arm64]
+components:
+  - { name: main, default: true }
+  - { name: universe, default: true }
+  - { name: restricted }
+repositories:
+  - name: security
+    url: https://security.ubuntu.com/ubuntu/
+    archURLs:                       # where an architecture lives elsewhere
+      arm64: https://ports.ubuntu.com/ubuntu-ports/
+    suite: noble-security
+    keys: [ubuntu-archive-2018]     # → keys/ubuntu-archive-2018.asc
+baseline: { repository: release, component: main }
+keys:
+  ubuntu-archive-2018: F6EC B376 2474 EDA9 D21B  7022 8719 20D1 991B C93C
+```
+
+RPM entries have no suite. Their URLs contain `{component}` and `{arch}`, and a component's `path` gives its name in the URL, such as `PowerTools` for `crb` on EL8. The `baseline` names where [minimal baselines](architecture.md#baselines-from-metadata) come from.
+
+When Packtrix loads the catalog, it checks every entry, and that every key file contains the key its fingerprint pins. `make test-live` also fetches the `InRelease` file of every repository, for every architecture, and verifies it with the pinned keys.
+
+Vendor repositories will use the same fields as custom repositories, pre-filled:
 
 ```yaml
 # catalog/vendors/kubernetes.yaml

@@ -152,6 +152,7 @@ Implemented:
 
 ```
 cmd/packtrix/                   binary entry point
+internal/catalog/               built-in distros: repositories, components, keys pinned by fingerprint
 internal/cli/                   commands (cobra)
 internal/version/               build information
 internal/deb/                   Debian versions and how they sort, dependency fields, Packages indexes, version constraints
@@ -171,7 +172,7 @@ The manifest API follows the Kubernetes pattern. A manifest is decoded in its ow
 Planned:
 
 ```
-internal/catalog/      built-in distros and vendor repositories, auto-detection
+internal/catalog/      vendor repositories, auto-detection
 internal/resolve/      RPM dependency model, baselines
 internal/fetch/        download, verification, content-addressed pool
 internal/repo/apt/     APT metadata subsetting and signing

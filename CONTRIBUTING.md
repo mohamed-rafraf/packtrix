@@ -29,6 +29,7 @@ The code is organized as follows:
 | Path | Contents |
 |---|---|
 | `cmd/packtrix/` | The binary's entry point |
+| `internal/catalog/` | The built-in distros: their repositories, components and keys |
 | `internal/cli/` | The commands |
 | `internal/deb/` | Debian versions, dependency fields, Packages indexes and version constraints |
 | `internal/pgp/` | OpenPGP: verifying upstream signatures against pinned keys, signing the published repositories |
@@ -43,6 +44,8 @@ The code is organized as follows:
 | `site/` | The website: a Hugo site that renders `docs/` and adds the landing page |
 
 A change to the manifest format changes the types in both `pkg/apis/packtrix/` and `v1alpha1/`. Defaults go in `v1alpha1/defaults.go` as `SetDefaults_<Type>` functions. Then run `make update-codegen` and commit the generated files; pull requests check that they are up to date. Never edit `zz_generated.*.go` by hand.
+
+A change to the catalog in `internal/catalog/` bumps the version in `catalog.yaml`. A new or changed key needs its fingerprint checked against the vendor's own documentation, linked in the pull request; see the [inclusion policy](docs/catalog.md#inclusion-policy). Run `make test-live` to check every repository against its pinned keys.
 
 The files in `examples/` are loaded by the tests, so they must always stay valid.
 
