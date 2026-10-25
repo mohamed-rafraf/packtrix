@@ -18,7 +18,7 @@ Packtrix sits on the supply chain of every machine it serves. This page describe
 | **APT** | The signed `InRelease` file lists hashes of the `Packages` indexes, which list hashes of each `.deb`. Individual `.deb` files are not signed. | The `InRelease` signature against the pinned key, then each index hash, then each `.deb` hash |
 | **RPM** | Each `.rpm` carries an embedded GPG signature. Most distributions don't sign `repomd.xml`. | Each package's signature against the pinned key, then each file hash against the metadata |
 
-A signature only counts if it was made by a pinned key that is still valid: Packtrix, like `apt`, rejects signatures by keys that have since expired or been revoked, SHA-1 signatures, and DSA and ElGamal keys. An `InRelease` file must contain nothing outside its signed part.
+A signature only counts if it was made by a pinned key that is still valid: Packtrix, like `apt`, rejects signatures by keys that have since expired or been revoked, SHA-1 signatures, and DSA and ElGamal keys. An `InRelease` file must contain nothing outside its signed part. Like `apt`, Packtrix also rejects a `Release` file whose `Valid-Until` has passed, or that is for another suite than the one asked for, so a server or a mirror on the way can't serve outdated metadata, or another suite's. Only the SHA-256 hashes of a `Release` file count.
 
 If any check fails, `sync` stops and nothing is published.
 

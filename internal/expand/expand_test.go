@@ -201,7 +201,7 @@ func TestPackages(t *testing.T) {
 	// {arch} is the native name: amd64 for APT, x86_64 for RPM. A distro
 	// target's own repositories come first.
 	gpu := res.Targets[0].Architectures[0].Repositories
-	if last := gpu[len(gpu)-1]; last.URL != "https://vendor.example.org/amd64/" || !reflect.DeepEqual(last.Keys, []string{ubuntuKey}) {
+	if last := gpu[len(gpu)-1]; last.URL != "https://vendor.example.org/amd64/" || !reflect.DeepEqual(last.Keys, []string{ubuntuKey}) || !last.Extra || gpu[0].Extra {
 		t.Errorf("vendor repository = %+v", last)
 	}
 	oracle := res.Targets[2]

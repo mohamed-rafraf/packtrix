@@ -35,6 +35,7 @@ The code is organized as follows:
 | `internal/expand/` | Turns the manifest's targets into concrete repositories and package lists, with the catalog |
 | `internal/fetch/` | HTTP downloads through proxies and private CAs, with credentials, retries and resuming |
 | `internal/pgp/` | OpenPGP: verifying upstream signatures against pinned keys, signing the published repositories |
+| `internal/repo/apt/` | Reading upstream APT repositories, verified against their keys and hashes |
 | `internal/resolve/` | The dependency closure, which doesn't know APT or RPM |
 | `internal/resolve/apt/` | The APT dependency model: which packages satisfy a dependency |
 | `internal/secret/` | Reading the secrets a manifest references, such as the signing key |

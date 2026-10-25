@@ -17,6 +17,7 @@ limitations under the License.
 package deb
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -44,6 +45,8 @@ Recommends: ca-certificates
 Breaks: libcurl4 (<< 8.5.0-2ubuntu10.6)
 Conflicts: libcurl4-gnutls-dev
 Filename: pool/main/c/curl/libcurl4t64_8.5.0-2ubuntu10.6_amd64.deb
+Size: 341460
+SHA256: 2f4d0c5dbbd2ef0bad1a9c3a36b9e5b6e1d8bd9a1c6e9e3a3a0e4f1f1e8d6c5b
 `)
 	if err != nil {
 		t.Fatal(err)
@@ -61,6 +64,9 @@ Filename: pool/main/c/curl/libcurl4t64_8.5.0-2ubuntu10.6_amd64.deb
 		{"Recommends", format(p.Recommends), "ca-certificates"},
 		{"Breaks", format(p.Breaks), "libcurl4 (<< 8.5.0-2ubuntu10.6)"},
 		{"Conflicts", format(p.Conflicts), "libcurl4-gnutls-dev"},
+		{"Filename", p.Filename, "pool/main/c/curl/libcurl4t64_8.5.0-2ubuntu10.6_amd64.deb"},
+		{"Size", fmt.Sprint(p.Size), "341460"},
+		{"SHA256", p.SHA256, "2f4d0c5dbbd2ef0bad1a9c3a36b9e5b6e1d8bd9a1c6e9e3a3a0e4f1f1e8d6c5b"},
 	} {
 		if tt.got != tt.want {
 			t.Errorf("%s = %q, want %q", tt.field, tt.got, tt.want)
@@ -89,6 +95,9 @@ func TestParsePackageErrors(t *testing.T) {
 		{valid + "Pre-Depends: libc6 (>= )\n", "package curl: Pre-Depends: invalid dependency"},
 		{valid + "Depends: libc6,\n", "package curl: Depends: invalid dependency field"},
 		{valid + "Conflicts: [amd64]\n", "package curl: Conflicts: invalid dependency"},
+		{valid + "Size: -1\n", `package curl: Size: invalid size "-1"`},
+		{valid + "Size: big\n", `package curl: Size: invalid size "big"`},
+		{valid + "SHA256: ABC\n", `package curl: SHA256: invalid SHA-256 "ABC"`},
 	} {
 		_, err := parsePackage(t, tt.text)
 		if err == nil || !strings.HasPrefix(err.Error(), tt.want) {
