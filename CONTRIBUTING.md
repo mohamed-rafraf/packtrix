@@ -32,6 +32,7 @@ The code is organized as follows:
 | `internal/catalog/` | The built-in distros: their repositories, components and keys |
 | `internal/cli/` | The commands |
 | `internal/deb/` | Debian versions, dependency fields, Packages indexes and version constraints |
+| `internal/download/` | Downloads the packages of a lock into the pool, checking each against the lock |
 | `internal/expand/` | Turns the manifest's targets into concrete repositories and package lists, with the catalog |
 | `internal/fetch/` | HTTP downloads through proxies and private CAs, with credentials, retries and resuming |
 | `internal/pgp/` | OpenPGP: verifying upstream signatures against pinned keys, signing the published repositories |
