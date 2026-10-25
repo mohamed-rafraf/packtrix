@@ -64,6 +64,9 @@ type Repository struct {
 	Suite string
 	// Release is the verified Release file.
 	Release *Release
+	// Digest is the SHA-256 of the verified Release file's text, as
+	// "sha256:<hex>". It changes whenever the repository does.
+	Digest string
 	// Signer is the fingerprint of the key that signed the Release.
 	Signer  string
 	Indexes []Index
@@ -126,6 +129,8 @@ func (r *Repository) read(ctx context.Context, c *fetch.Client, repo Source, arc
 	if r.Release, err = ParseRelease(text); err != nil {
 		return err
 	}
+	sum := sha256.Sum256(text)
+	r.Digest = "sha256:" + hex.EncodeToString(sum[:])
 	rel := r.Release
 	if !flat(repo.Suite) && repo.Suite != rel.Suite && repo.Suite != rel.Codename {
 		return fmt.Errorf("the Release file is for suite %q (%s), not %q", rel.Suite, rel.Codename, repo.Suite)

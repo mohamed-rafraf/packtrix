@@ -84,11 +84,45 @@ A dependency closure is always relative to what the machine already has. The **b
 
 `plan` writes **`packtrix.lock`**, and `sync` carries it out exactly. Commit the lockfile next to the manifest. For every target and architecture it records:
 
-- every package: name, exact version, architecture, source repository, URL, SHA-256 and size;
-- fingerprints of the upstream indexes and signing keys used;
-- the version of the built-in catalog.
+- every package: name, exact version, architecture, source repository, URL, SHA-256, size, and why it is needed;
+- each upstream repository: the digest of the `Release` file that was verified, and the fingerprint of the key that signed it;
+- the version of the built-in catalog, and the digest of the manifest.
 
-The manifest says what you want; the lockfile says exactly what you got. **An update is a lockfile diff,** and that diff is what a reviewer approves.
+```yaml
+apiVersion: packtrix.io/v1alpha1
+kind: Lock
+metadata:
+  name: k8s-node-prereqs
+spec:
+  catalog: 2026.10.1
+  manifest: sha256:7cd658be…
+  targets:
+  - architecture: amd64
+    distribution: Ubuntu noble
+    format: apt
+    name: ubuntu-24.04
+    packages:
+    - architecture: amd64
+      name: libcurl4t64
+      repository: updates
+      sha256: 0f3c…
+      size: 344300
+      url: https://archive.ubuntu.com/ubuntu/pool/main/c/curl/libcurl4t64_8.5.0-2ubuntu10.16_amd64.deb
+      version: 8.5.0-2ubuntu10.16
+      why:
+      - curl
+    repositories:
+    - components:
+      - main
+      - universe
+      name: updates
+      release: sha256:9a1e…
+      signer: F6ECB3762474EDA9D21B7022871920D1991BC93C
+      suite: noble-updates
+      url: https://archive.ubuntu.com/ubuntu/
+```
+
+The manifest says what you want; the lockfile says exactly what you got. **An update is a lockfile diff,** and that diff is what a reviewer approves. Its lists are sorted and it holds no timestamp, so planning the same thing twice writes the same file. The manifest's digest is taken after defaults, so comments and formatting don't count; a lock planned from another version of the manifest is stale.
 
 ## Snapshot
 

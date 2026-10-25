@@ -23,6 +23,7 @@ import (
 	"github.com/packtrix/packtrix/internal/catalog"
 	"github.com/packtrix/packtrix/internal/fetch"
 	"github.com/packtrix/packtrix/pkg/apis/packtrix/manifest"
+	"github.com/packtrix/packtrix/pkg/apis/packtrix/validation"
 )
 
 // TestLiveExample plans examples/k8s-node-prereqs.yaml against the real
@@ -49,6 +50,13 @@ func TestLiveExample(t *testing.T) {
 	}
 	if len(p.Targets) != 3 {
 		t.Fatalf("%d targets planned, want 3", len(p.Targets))
+	}
+	digest, err := manifest.Digest(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validation.ValidateLock(p.Lock(m.Name, digest, c.Version)); err != nil {
+		t.Errorf("the lock isn't valid: %v", err)
 	}
 	for _, target := range p.Targets {
 		t.Logf("%s (%s): %s, %d packages, %d MiB", target.Name, target.Architecture, target.Distribution, len(target.Packages), target.Size()>>20)
