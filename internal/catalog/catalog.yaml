@@ -13,4 +13,4 @@
 # limitations under the License.
 
 # Bump the version whenever an entry or a key changes: the lockfile records it.
-version: 2026.10.0
+version: 2026.10.1

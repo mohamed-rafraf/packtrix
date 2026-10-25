@@ -132,3 +132,34 @@ func TestCatalogShow(t *testing.T) {
 		t.Errorf("error = %v, want %q", err, want)
 	}
 }
+
+func TestRender(t *testing.T) {
+	out, err := run(t, "render", "-f", "../../examples/k8s-node-prereqs.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"  distro: ubuntu-22.04\n  format: apt\n  name: ubuntu-22.04\n",
+		"suite: jammy-security\n      url: https://security.ubuntu.com/ubuntu/\n",
+		"suite: bookworm-security\n      url: https://security.debian.org/debian-security/\n",
+		"- F6ECB3762474EDA9D21B7022871920D1991BC93C\n",
+		"- 05AB90340C0C5E797F44A8C8254CF3B5AEC0A8F0\n",
+		"- name: glusterfs-client\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output is missing %q", want)
+		}
+	}
+}
+
+func TestRenderUnknownDistro(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "packtrix.yaml")
+	manifest := "apiVersion: packtrix.io/v1alpha1\nkind: OfflineRepository\nmetadata:\n  name: test\nspec:\n  targets:\n    - distro: ubuntu-24.4\n  packages: [curl]\n"
+	if err := os.WriteFile(file, []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := run(t, "render", "-f", file)
+	if want := `spec.targets[0].distro.name: unknown distro "ubuntu-24.4"; did you mean "ubuntu-24.04"?`; err == nil || err.Error() != want {
+		t.Errorf("error = %v, want %q", err, want)
+	}
+}

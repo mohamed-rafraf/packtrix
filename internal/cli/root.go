@@ -36,6 +36,7 @@ from a single manifest, ready to carry into air-gapped environments.`,
 	}
 	cmd.AddCommand(
 		newCatalogCommand(),
+		newRenderCommand(),
 		newValidateCommand(),
 		newVersionCommand(),
 	)

@@ -32,6 +32,7 @@ The code is organized as follows:
 | `internal/catalog/` | The built-in distros: their repositories, components and keys |
 | `internal/cli/` | The commands |
 | `internal/deb/` | Debian versions, dependency fields, Packages indexes and version constraints |
+| `internal/expand/` | Turns the manifest's targets into concrete repositories and package lists, with the catalog |
 | `internal/pgp/` | OpenPGP: verifying upstream signatures against pinned keys, signing the published repositories |
 | `internal/resolve/` | The dependency closure, which doesn't know APT or RPM |
 | `internal/resolve/apt/` | The APT dependency model: which packages satisfy a dependency |
