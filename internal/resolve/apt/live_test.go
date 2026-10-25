@@ -36,7 +36,7 @@ func read(t *testing.T, client *fetch.Client, d *catalog.Distro, r catalog.Repos
 		t.Fatal(err)
 	}
 	src := repoapt.Source{Name: r.Name, URL: r.URLFor("amd64"), Suite: r.Suite, Components: []string{"main", "universe"}, Keyring: keyring}
-	repo, err := repoapt.Read(t.Context(), client, src, "amd64")
+	repo, err := (&repoapt.Reader{Client: client}).Read(t.Context(), src, "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}

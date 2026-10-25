@@ -20,10 +20,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -31,11 +33,12 @@ import (
 	"github.com/packtrix/packtrix/internal/expand"
 	"github.com/packtrix/packtrix/internal/fetch"
 	"github.com/packtrix/packtrix/internal/plan"
+	"github.com/packtrix/packtrix/internal/pool"
 	"github.com/packtrix/packtrix/pkg/apis/packtrix/manifest"
 )
 
 func newPlanCommand() *cobra.Command {
-	var file, output, caFile, lockFile string
+	var file, output, caFile, lockFile, cacheDir string
 	cmd := &cobra.Command{
 		Use:   "plan",
 		Short: "Resolve every target and show what will be downloaded",
@@ -69,9 +72,14 @@ failed. The lock is only written when every target is planned.`,
 			if err != nil {
 				return err
 			}
+			cache, err := openCache(cacheDir)
+			if err != nil {
+				return err
+			}
 			stderr := cmd.ErrOrStderr()
 			p, err := plan.Run(cmd.Context(), m, c, client, plan.Options{
-				Dir: filepath.Dir(file),
+				Dir:   filepath.Dir(file),
+				Cache: cache,
 				Reading: func(target, arch string, r expand.Repository) {
 					fmt.Fprintf(stderr, "Reading %s (%s): %s, %s %s\n", target, arch, r.Name, r.URL, r.Suite)
 				},
@@ -86,6 +94,11 @@ failed. The lock is only written when every target is planned.`,
 				if err == nil {
 					err = werr
 				}
+			}
+			if cache != nil {
+				// Indexes that no run used for a while belong to old versions
+				// of the repositories.
+				_, _ = cache.Prune(time.Now().Add(-cacheMaxAge))
 			}
 			if lockFile == "" {
 				lockFile = filepath.Join(filepath.Dir(file), manifest.LockName)
@@ -114,7 +127,30 @@ failed. The lock is only written when every target is planned.`,
 	cmd.Flags().StringVarP(&output, "output", "o", "", "print the plan as json")
 	cmd.Flags().StringVar(&caFile, "ca-file", "", "PEM file of certificate authorities to trust, such as a TLS-inspecting proxy's")
 	cmd.Flags().StringVar(&lockFile, "lock", "", "path of the lock to write (default packtrix.lock next to the manifest)")
+	addCacheFlag(cmd, &cacheDir)
 	return cmd
+}
+
+// cacheMaxAge is how long the cache keeps an index that no run uses.
+const cacheMaxAge = 30 * 24 * time.Hour
+
+// addCacheFlag registers the --cache-dir flag on commands that read
+// upstream repositories.
+func addCacheFlag(cmd *cobra.Command, dir *string) {
+	cmd.Flags().StringVar(dir, "cache-dir", "", "directory of the cache of upstream indexes (default $XDG_CACHE_HOME/packtrix, usually ~/.cache/packtrix)")
+}
+
+// openCache opens the cache of upstream indexes in dir, or in the user's
+// cache directory. Without one, it returns nil, and indexes aren't cached.
+func openCache(dir string) (*pool.Pool, error) {
+	if dir == "" {
+		base, err := os.UserCacheDir()
+		if err != nil {
+			return nil, nil
+		}
+		dir = filepath.Join(base, "packtrix")
+	}
+	return pool.Open(filepath.Join(dir, "indexes"))
 }
 
 func writeJSON(out io.Writer, v any) error {

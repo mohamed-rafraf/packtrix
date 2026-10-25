@@ -90,7 +90,7 @@ spec:
 
 func TestPlan(t *testing.T) {
 	manifest, caFile := planFixture(t, "[curl]")
-	out, err := run(t, "plan", "-f", manifest, "--ca-file", caFile)
+	out, err := run(t, "plan", "-f", manifest, "--ca-file", caFile, "--cache-dir", t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestPlan(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"plan", "-f", manifest, "--ca-file", caFile, "-o", "json"})
+	cmd.SetArgs([]string{"plan", "-f", manifest, "--ca-file", caFile, "-o", "json", "--cache-dir", t.TempDir()})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
@@ -132,9 +132,10 @@ func TestPlan(t *testing.T) {
 func TestPlanWritesLock(t *testing.T) {
 	path, caFile := planFixture(t, "[curl]")
 	lockPath := filepath.Join(filepath.Dir(path), "packtrix.lock")
+	cacheDir := t.TempDir()
 	var locks [][]byte
 	for i, want := range []string{"Wrote " + lockPath, lockPath + " is unchanged"} {
-		out, err := run(t, "plan", "-f", path, "--ca-file", caFile)
+		out, err := run(t, "plan", "-f", path, "--ca-file", caFile, "--cache-dir", cacheDir)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -149,6 +150,10 @@ func TestPlanWritesLock(t *testing.T) {
 	}
 	if !bytes.Equal(locks[0], locks[1]) {
 		t.Error("planning twice wrote different locks")
+	}
+	// The verified index is in the cache.
+	if cached, _ := filepath.Glob(filepath.Join(cacheDir, "indexes", "sha256", "*", "*")); len(cached) != 1 {
+		t.Errorf("the cache holds %q, want the index", cached)
 	}
 	l, err := manifest.LoadLockFile(lockPath)
 	if err != nil {
@@ -166,7 +171,7 @@ func TestPlanWritesLock(t *testing.T) {
 	}
 
 	other := filepath.Join(t.TempDir(), "other.lock")
-	if _, err := run(t, "plan", "-f", path, "--ca-file", caFile, "--lock", other); err != nil {
+	if _, err := run(t, "plan", "-f", path, "--ca-file", caFile, "--lock", other, "--cache-dir", cacheDir); err != nil {
 		t.Fatal(err)
 	}
 	if data, err := os.ReadFile(other); err != nil || !bytes.Equal(data, locks[0]) {
@@ -176,7 +181,7 @@ func TestPlanWritesLock(t *testing.T) {
 
 func TestPlanErrors(t *testing.T) {
 	manifest, caFile := planFixture(t, "[curl, nope]")
-	out, err := run(t, "plan", "-f", manifest, "--ca-file", caFile)
+	out, err := run(t, "plan", "-f", manifest, "--ca-file", caFile, "--cache-dir", t.TempDir())
 	if err == nil || err.Error() != "target internal (amd64): no package nope in the target's repositories" {
 		t.Errorf("error = %v", err)
 	}
@@ -188,10 +193,10 @@ func TestPlanErrors(t *testing.T) {
 		t.Errorf("a lock was written: %v", err)
 	}
 	// Without the CA, the archive's certificate isn't trusted.
-	if _, err := run(t, "plan", "-f", manifest); err == nil || !strings.Contains(err.Error(), "pass its certificate with --ca-file") {
+	if _, err := run(t, "plan", "-f", manifest, "--cache-dir", t.TempDir()); err == nil || !strings.Contains(err.Error(), "pass its certificate with --ca-file") {
 		t.Errorf("error = %v", err)
 	}
-	if _, err := run(t, "plan", "-f", manifest, "-o", "yaml"); err == nil || err.Error() != `unsupported output format "yaml" (supported: json)` {
+	if _, err := run(t, "plan", "-f", manifest, "-o", "yaml", "--cache-dir", t.TempDir()); err == nil || err.Error() != `unsupported output format "yaml" (supported: json)` {
 		t.Errorf("error = %v", err)
 	}
 }
