@@ -84,7 +84,7 @@ Use the object form only to change a distro's defaults:
 distro:
   name: rocky-9
   components: [baseos, appstream, crb]
-  mirror: https://nexus.internal/repository/rocky
+  mirror: https://nexus.internal/repository/
   auth: { … }
 ```
 
@@ -92,7 +92,7 @@ distro:
 |---|---|---|
 | `name` | — | Built-in distro name |
 | `components` | per distro | Parts of the distro to include. The same field works for every distro family. See [components](catalog.md#components). |
-| `mirror` | official servers | Fetch through a mirror or proxy (Nexus, Artifactory, a local mirror) instead of the official servers. Keys and paths stay the same. |
+| `mirror` | official servers | Fetch through a mirror or proxy (Nexus, Artifactory, a local mirror) instead of the official servers. Each repository keeps its path under the mirror, and its keys. With `https://nexus.internal/repository/`, Ubuntu's `https://archive.ubuntu.com/ubuntu/` becomes `https://nexus.internal/repository/ubuntu/`, its arm64 archive `…/ubuntu-ports/`, and Debian's security archive `…/debian-security/`. `packtrix render` shows the resulting URLs. |
 | `auth` | — | Credentials for distros that need them, e.g. RHEL subscription certificates |
 
 ### Repository object

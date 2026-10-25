@@ -29,7 +29,7 @@ spec:
     - name: ubuntu-legacy
       distro:
         name: ubuntu-22.04
-        mirror: https://nexus.internal/repository/ubuntu   # fetch through an internal proxy
+        mirror: https://nexus.internal/repository/   # fetch through an internal proxy: …/repository/ubuntu/
 
     - distro: rocky-9
       architectures: [amd64, arm64]

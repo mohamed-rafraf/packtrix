@@ -156,6 +156,7 @@ internal/catalog/               built-in distros: repositories, components, keys
 internal/cli/                   commands (cobra)
 internal/version/               build information
 internal/deb/                   Debian versions and how they sort, dependency fields, Packages indexes, version constraints
+internal/expand/                manifest + catalog → each target's repositories and packages
 internal/pgp/                   signature verification against pinned keys, signing
 internal/resolve/               dependency closure, independent of the package format
 internal/resolve/apt/           APT dependency model

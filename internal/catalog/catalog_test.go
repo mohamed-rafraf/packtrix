@@ -70,7 +70,7 @@ func TestBuiltin(t *testing.T) {
 	if c.Version == "" {
 		t.Error("the catalog has no version")
 	}
-	if got, want := names(c.Distros()), []string{"debian-12", "ubuntu-24.04"}; !reflect.DeepEqual(got, want) {
+	if got, want := names(c.Distros()), []string{"debian-12", "ubuntu-22.04", "ubuntu-24.04"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Distros = %q, want %q", got, want)
 	}
 
@@ -116,7 +116,7 @@ func TestUnknownDistro(t *testing.T) {
 	for name, want := range map[string]string{
 		"ubuntu-24.4": `unknown distro "ubuntu-24.4"; did you mean "ubuntu-24.04"?`,
 		"debian12":    `unknown distro "debian12"; did you mean "debian-12"?`,
-		"gentoo":      `unknown distro "gentoo" (known: debian-12, ubuntu-24.04)`,
+		"gentoo":      `unknown distro "gentoo" (known: debian-12, ubuntu-22.04, ubuntu-24.04)`,
 	} {
 		if _, err := c.Distro(name); err == nil || err.Error() != want {
 			t.Errorf("Distro(%q) = %v, want %q", name, err, want)
