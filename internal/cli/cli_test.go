@@ -98,3 +98,37 @@ func TestVersionShort(t *testing.T) {
 		t.Errorf("version --short = %q, want a single version line", out)
 	}
 }
+
+func TestCatalogList(t *testing.T) {
+	out, err := run(t, "catalog", "list")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"ubuntu-24.04  24.04 (noble)  apt", "debian-12     12 (bookworm)  apt", "Catalog version "} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output is missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestCatalogShow(t *testing.T) {
+	out, err := run(t, "catalog", "show", "ubuntu-24.04")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"security    noble-security  ubuntu-archive-2018  amd64         https://security.ubuntu.com/ubuntu/\n",
+		"                                                 arm64         https://ports.ubuntu.com/ubuntu-ports/\n",
+		"ubuntu-archive-2018  F6EC B376 2474 EDA9 D21B  7022 8719 20D1 991B C93C",
+		"Components:     main, universe; optional: restricted, multiverse",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output is missing %q:\n%s", want, out)
+		}
+	}
+
+	_, err = run(t, "catalog", "show", "ubuntu-24.4")
+	if want := `unknown distro "ubuntu-24.4"; did you mean "ubuntu-24.04"?`; err == nil || err.Error() != want {
+		t.Errorf("error = %v, want %q", err, want)
+	}
+}
