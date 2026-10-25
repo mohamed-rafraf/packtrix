@@ -158,6 +158,7 @@ internal/catalog/               built-in distros: repositories, components, keys
 internal/cli/                   commands (cobra)
 internal/version/               build information
 internal/deb/                   Debian versions and how they sort, dependency fields, Packages indexes, version constraints
+internal/download/              the lock's packages into the pool, checked against the lock
 internal/expand/                manifest + catalog → each target's repositories and packages
 internal/fetch/                 HTTP downloads: proxies, private CAs, credentials, retries, resuming
 internal/pgp/                   signature verification against pinned keys, signing
