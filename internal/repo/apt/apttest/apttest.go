@@ -1,0 +1,250 @@
+/*
+Copyright 2026 The Packtrix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package apttest builds signed APT repositories on disk and serves them,
+// for tests.
+package apttest
+
+import (
+	"bytes"
+	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/pem"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/ProtonMail/go-crypto/openpgp/armor"
+	"github.com/ProtonMail/go-crypto/openpgp/packet"
+	openpgp "github.com/ProtonMail/go-crypto/openpgp/v2"
+	"github.com/ulikunitz/xz"
+
+	"github.com/packtrix/packtrix/internal/pgp"
+)
+
+// Key generates a signing key, like an archive's, and returns a signer and
+// a keyring that pins it.
+func Key(t testing.TB) (*pgp.Signer, *pgp.Keyring) {
+	t.Helper()
+	e, err := openpgp.NewEntity("Test Archive Automatic Signing Key", "", "archive@example.org", &packet.Config{Algorithm: packet.PubKeyAlgoEdDSA})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	w, err := armor.Encode(&buf, openpgp.PrivateKeyType, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.SerializePrivateWithoutSigning(w, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := pgp.LoadSigner(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	public, err := s.PublicKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	k, err := pgp.NewKeyring(public, s.Fingerprint())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s, k
+}
+
+// Archive is an APT archive on disk, served over HTTP or HTTPS. It records
+// the paths it is asked for.
+type Archive struct {
+	t      testing.TB
+	root   string
+	signer *pgp.Signer
+	server *httptest.Server
+
+	mu       sync.Mutex
+	requests []string
+}
+
+// New serves an empty archive whose Release files signer signs, over HTTPS
+// when secure is set.
+func New(t testing.TB, signer *pgp.Signer, secure bool) *Archive {
+	t.Helper()
+	a := &Archive{t: t, root: t.TempDir(), signer: signer}
+	files := http.FileServer(http.Dir(a.root))
+	a.server = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a.mu.Lock()
+		a.requests = append(a.requests, r.URL.Path)
+		a.mu.Unlock()
+		files.ServeHTTP(w, r)
+	}))
+	a.server.Config.ErrorLog = log.New(io.Discard, "", 0)
+	if secure {
+		a.server.StartTLS()
+	} else {
+		a.server.Start()
+	}
+	t.Cleanup(a.server.Close)
+	return a
+}
+
+// URL returns the archive's root URL, without a trailing slash.
+func (a *Archive) URL() string {
+	return a.server.URL
+}
+
+// CAFile writes the certificate of an HTTPS archive to a file, for clients
+// to trust.
+func (a *Archive) CAFile() string {
+	a.t.Helper()
+	file := filepath.Join(a.t.TempDir(), "ca.pem")
+	data := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: a.server.Certificate().Raw})
+	if err := os.WriteFile(file, data, 0o600); err != nil {
+		a.t.Fatal(err)
+	}
+	return file
+}
+
+// Requests returns the paths asked for since the last ResetRequests.
+func (a *Archive) Requests() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return slices.Clone(a.requests)
+}
+
+// ResetRequests forgets the paths asked for so far.
+func (a *Archive) ResetRequests() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.requests = nil
+}
+
+// Write writes a file of the archive, by its path from the root.
+func (a *Archive) Write(name string, data []byte) {
+	a.t.Helper()
+	file := filepath.Join(a.root, filepath.FromSlash(name))
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+		a.t.Fatal(err)
+	}
+	if err := os.WriteFile(file, data, 0o644); err != nil {
+		a.t.Fatal(err)
+	}
+}
+
+// Read reads a file of the archive, by its path from the root.
+func (a *Archive) Read(name string) []byte {
+	a.t.Helper()
+	data, err := os.ReadFile(filepath.Join(a.root, filepath.FromSlash(name)))
+	if err != nil {
+		a.t.Fatal(err)
+	}
+	return data
+}
+
+// Suite describes a Release file and its indexes.
+type Suite struct {
+	// Dir is the Release's directory from the root, such as
+	// "ubuntu/dists/noble", or the repository's root for a flat repository.
+	Dir string
+	// Fields are the Release's fields before its SHA256 hashes.
+	Fields string
+	// Indexes are Packages contents, by path without extension, such as
+	// "main/binary-amd64/Packages".
+	Indexes map[string]string
+	// Compressions are the forms each index is published in: ".xz",
+	// ".gz", "".
+	Compressions []string
+	// ByHash also publishes each index under by-hash/SHA256/.
+	ByHash bool
+	// Detached signs the Release as Release.gpg instead of InRelease.
+	Detached bool
+}
+
+// Publish writes a suite's indexes and its signed Release.
+func (a *Archive) Publish(s Suite) {
+	a.t.Helper()
+	var hashes strings.Builder
+	var indexes []string
+	for index := range s.Indexes {
+		indexes = append(indexes, index)
+	}
+	slices.Sort(indexes)
+	for _, index := range indexes {
+		for _, ext := range s.Compressions {
+			data := Compress(a.t, s.Indexes[index], ext)
+			sum := sha256.Sum256(data)
+			hash := hex.EncodeToString(sum[:])
+			a.Write(path.Join(s.Dir, index+ext), data)
+			if s.ByHash {
+				a.Write(path.Join(s.Dir, path.Dir(index), "by-hash/SHA256", hash), data)
+			}
+			fmt.Fprintf(&hashes, " %s %d %s\n", hash, len(data), index+ext)
+		}
+	}
+	release := []byte(s.Fields + "SHA256:\n" + hashes.String())
+	if s.Detached {
+		sig, err := a.signer.DetachSign(release)
+		if err != nil {
+			a.t.Fatal(err)
+		}
+		a.Write(path.Join(s.Dir, "Release"), release)
+		a.Write(path.Join(s.Dir, "Release.gpg"), sig)
+		return
+	}
+	inRelease, err := a.signer.Clearsign(release)
+	if err != nil {
+		a.t.Fatal(err)
+	}
+	a.Write(path.Join(s.Dir, "InRelease"), inRelease)
+}
+
+// Compress compresses text as ext says: ".xz", ".gz", or "" for none.
+func Compress(t testing.TB, text, ext string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	var w io.WriteCloser
+	switch ext {
+	case ".xz":
+		xw, err := xz.NewWriter(&buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		w = xw
+	case ".gz":
+		w = gzip.NewWriter(&buf)
+	default:
+		return []byte(text)
+	}
+	if _, err := w.Write([]byte(text)); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}

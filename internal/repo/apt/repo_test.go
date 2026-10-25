@@ -19,64 +19,19 @@ package apt
 import (
 	"bytes"
 	"cmp"
-	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"path"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/ProtonMail/go-crypto/openpgp/armor"
-	"github.com/ProtonMail/go-crypto/openpgp/packet"
-	openpgp "github.com/ProtonMail/go-crypto/openpgp/v2"
-	"github.com/ulikunitz/xz"
-
 	"github.com/packtrix/packtrix/internal/fetch"
 	"github.com/packtrix/packtrix/internal/pgp"
+	"github.com/packtrix/packtrix/internal/repo/apt/apttest"
 )
-
-// archiveKey returns a signer, like an archive's, and a keyring that pins
-// it.
-func archiveKey(t *testing.T) (*pgp.Signer, *pgp.Keyring) {
-	t.Helper()
-	e, err := openpgp.NewEntity("Test Archive Automatic Signing Key", "", "archive@example.org", &packet.Config{Algorithm: packet.PubKeyAlgoEdDSA})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var buf bytes.Buffer
-	w, err := armor.Encode(&buf, openpgp.PrivateKeyType, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := e.SerializePrivateWithoutSigning(w, nil); err != nil {
-		t.Fatal(err)
-	}
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
-	s, err := pgp.LoadSigner(buf.Bytes())
-	if err != nil {
-		t.Fatal(err)
-	}
-	public, err := s.PublicKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	k, err := pgp.NewKeyring(public, s.Fingerprint())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return s, k
-}
 
 func packages(names ...string) string {
 	var b strings.Builder
@@ -91,138 +46,16 @@ func packages(names ...string) string {
 	return b.String()
 }
 
-// archive is an APT repository on disk, served over HTTP.
-type archive struct {
-	t      *testing.T
-	root   string
-	signer *pgp.Signer
-	server *httptest.Server
-
-	mu       sync.Mutex
-	requests []string
-}
-
-func newArchive(t *testing.T, signer *pgp.Signer) *archive {
+// read reads the archive's repository at /ubuntu/ for amd64.
+func read(t *testing.T, a *apttest.Archive, keyring *pgp.Keyring, suiteName string, components ...string) (*Repository, error) {
 	t.Helper()
-	a := &archive{t: t, root: t.TempDir(), signer: signer}
-	files := http.FileServer(http.Dir(a.root))
-	a.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a.mu.Lock()
-		a.requests = append(a.requests, r.URL.Path)
-		a.mu.Unlock()
-		files.ServeHTTP(w, r)
-	}))
-	t.Cleanup(a.server.Close)
-	return a
-}
-
-// suite describes a Release file and its indexes.
-type suite struct {
-	// dir is the Release's directory, such as "dists/noble", or "" for a
-	// flat repository.
-	dir    string
-	fields string
-	// indexes are Packages contents, by path without extension.
-	indexes      map[string]string
-	compressions []string
-	byHash       bool
-	detached     bool
-}
-
-func (a *archive) write(name string, data []byte) {
-	a.t.Helper()
-	file := filepath.Join(a.root, filepath.FromSlash(name))
-	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
-		a.t.Fatal(err)
-	}
-	if err := os.WriteFile(file, data, 0o644); err != nil {
-		a.t.Fatal(err)
-	}
-}
-
-func compress(t *testing.T, text, ext string) []byte {
-	t.Helper()
-	var buf bytes.Buffer
-	var w interface {
-		Write([]byte) (int, error)
-		Close() error
-	}
-	switch ext {
-	case ".xz":
-		xw, err := xz.NewWriter(&buf)
-		if err != nil {
-			t.Fatal(err)
-		}
-		w = xw
-	case ".gz":
-		w = gzip.NewWriter(&buf)
-	default:
-		return []byte(text)
-	}
-	if _, err := w.Write([]byte(text)); err != nil {
-		t.Fatal(err)
-	}
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
-	return buf.Bytes()
-}
-
-// publish writes a suite's indexes and its signed Release.
-func (a *archive) publish(s suite) {
-	a.t.Helper()
-	var hashes strings.Builder
-	var indexes []string
-	for index := range s.indexes {
-		indexes = append(indexes, index)
-	}
-	slices.Sort(indexes)
-	for _, index := range indexes {
-		for _, ext := range s.compressions {
-			data := compress(a.t, s.indexes[index], ext)
-			sum := sha256.Sum256(data)
-			hash := hex.EncodeToString(sum[:])
-			a.write(path.Join(s.dir, index+ext), data)
-			if s.byHash {
-				a.write(path.Join(s.dir, path.Dir(index), "by-hash/SHA256", hash), data)
-			}
-			fmt.Fprintf(&hashes, " %s %d %s\n", hash, len(data), index+ext)
-		}
-	}
-	release := []byte(s.fields + "SHA256:\n" + hashes.String())
-	if s.detached {
-		sig, err := a.signer.DetachSign(release)
-		if err != nil {
-			a.t.Fatal(err)
-		}
-		a.write(path.Join(s.dir, "Release"), release)
-		a.write(path.Join(s.dir, "Release.gpg"), sig)
-		return
-	}
-	inRelease, err := a.signer.Clearsign(release)
-	if err != nil {
-		a.t.Fatal(err)
-	}
-	a.write(path.Join(s.dir, "InRelease"), inRelease)
-}
-
-func (a *archive) read(keyring *pgp.Keyring, suiteName string, components ...string) (*Repository, error) {
-	a.t.Helper()
 	c, err := fetch.New(fetch.Options{Retries: -1})
 	if err != nil {
-		a.t.Fatal(err)
+		t.Fatal(err)
 	}
-	a.mu.Lock()
-	a.requests = nil
-	a.mu.Unlock()
-	src := Source{Name: "test", URL: a.server.URL + "/ubuntu/", Suite: suiteName, Components: components, Keyring: keyring}
-	return Read(a.t.Context(), c, src, "amd64")
-}
-
-func (a *archive) requested() []string {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return slices.Clone(a.requests)
+	a.ResetRequests()
+	src := Source{Name: "test", URL: a.URL() + "/ubuntu/", Suite: suiteName, Components: components, Keyring: keyring}
+	return Read(t.Context(), c, src, "amd64")
 }
 
 func validUntil(d time.Duration) string {
@@ -249,20 +82,20 @@ func names(r *Repository) []string {
 }
 
 func TestRead(t *testing.T) {
-	signer, keyring := archiveKey(t)
-	a := newArchive(t, signer)
-	a.publish(suite{
-		dir:    "ubuntu/dists/noble",
-		fields: nobleFields,
-		indexes: map[string]string{
+	signer, keyring := apttest.Key(t)
+	a := apttest.New(t, signer, false)
+	a.Publish(apttest.Suite{
+		Dir:    "ubuntu/dists/noble",
+		Fields: nobleFields,
+		Indexes: map[string]string{
 			"main/binary-amd64/Packages":     packages("curl", "libcurl4"),
 			"universe/binary-amd64/Packages": packages("jq"),
 		},
-		compressions: []string{".xz", ".gz", ""},
-		byHash:       true,
+		Compressions: []string{".xz", ".gz", ""},
+		ByHash:       true,
 	})
 
-	r, err := a.read(keyring, "noble", "main", "universe")
+	r, err := read(t, a, keyring, "noble", "main", "universe")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,58 +110,58 @@ func TestRead(t *testing.T) {
 		t.Errorf("index = %+v, curl = %+v", r.Indexes[0], curl)
 	}
 	// Only the xz index, by hash.
-	for _, p := range a.requested() {
+	for _, p := range a.Requests() {
 		if p != "/ubuntu/dists/noble/InRelease" && !strings.Contains(p, "/by-hash/SHA256/") {
 			t.Errorf("requested %s, want only the InRelease and indexes by hash", p)
 		}
 	}
-	if n := len(a.requested()); n != 3 {
-		t.Errorf("%d requests, want 3: %q", n, a.requested())
+	if n := len(a.Requests()); n != 3 {
+		t.Errorf("%d requests, want 3: %q", n, a.Requests())
 	}
 }
 
 func TestReadFallbacks(t *testing.T) {
-	signer, keyring := archiveKey(t)
+	signer, keyring := apttest.Key(t)
 	for _, tt := range []struct {
 		name         string
-		suite        suite
+		suite        apttest.Suite
 		suiteName    string
 		components   []string
 		wantRequests []string
 	}{
-		{"Release and Release.gpg without InRelease", suite{
-			dir: "ubuntu/dists/noble", fields: nobleFields, detached: true, byHash: true,
-			indexes: map[string]string{"main/binary-amd64/Packages": packages("curl")}, compressions: []string{".gz"},
+		{"Release and Release.gpg without InRelease", apttest.Suite{
+			Dir: "ubuntu/dists/noble", Fields: nobleFields, Detached: true, ByHash: true,
+			Indexes: map[string]string{"main/binary-amd64/Packages": packages("curl")}, Compressions: []string{".gz"},
 		}, "noble", []string{"main"}, []string{"InRelease", "Release", "Release.gpg", "main/binary-amd64/by-hash/SHA256/"}},
-		{"by-hash missing", suite{
-			dir: "ubuntu/dists/noble", fields: nobleFields,
-			indexes: map[string]string{"main/binary-amd64/Packages": packages("curl")}, compressions: []string{".gz"},
+		{"by-hash missing", apttest.Suite{
+			Dir: "ubuntu/dists/noble", Fields: nobleFields,
+			Indexes: map[string]string{"main/binary-amd64/Packages": packages("curl")}, Compressions: []string{".gz"},
 		}, "noble", []string{"main"}, []string{"InRelease", "main/binary-amd64/by-hash/SHA256/", "main/binary-amd64/Packages.gz"}},
-		{"uncompressed only", suite{
-			dir: "ubuntu/dists/noble", fields: strings.Replace(nobleFields, "Acquire-By-Hash: yes\n", "", 1),
-			indexes: map[string]string{"main/binary-amd64/Packages": packages("curl")}, compressions: []string{""},
+		{"uncompressed only", apttest.Suite{
+			Dir: "ubuntu/dists/noble", Fields: strings.Replace(nobleFields, "Acquire-By-Hash: yes\n", "", 1),
+			Indexes: map[string]string{"main/binary-amd64/Packages": packages("curl")}, Compressions: []string{""},
 		}, "noble", []string{"main"}, []string{"InRelease", "main/binary-amd64/Packages"}},
-		{"flat repository", suite{
-			dir: "ubuntu", fields: "Origin: obs://build.opensuse.org/isv:kubernetes\nLabel: isv:kubernetes\n",
-			indexes: map[string]string{"Packages": packages("curl")}, compressions: []string{".gz"},
+		{"flat repository", apttest.Suite{
+			Dir: "ubuntu", Fields: "Origin: obs://build.opensuse.org/isv:kubernetes\nLabel: isv:kubernetes\n",
+			Indexes: map[string]string{"Packages": packages("curl")}, Compressions: []string{".gz"},
 		}, "/", nil, []string{"InRelease", "Packages.gz"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			a := newArchive(t, signer)
-			a.publish(tt.suite)
-			r, err := a.read(keyring, tt.suiteName, tt.components...)
+			a := apttest.New(t, signer, false)
+			a.Publish(tt.suite)
+			r, err := read(t, a, keyring, tt.suiteName, tt.components...)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if got := names(r); !slices.Equal(got, []string{"curl"}) {
 				t.Errorf("packages = %q", got)
 			}
-			got := a.requested()
+			got := a.Requests()
 			if len(got) != len(tt.wantRequests) {
 				t.Fatalf("requests = %q, want %q", got, tt.wantRequests)
 			}
 			for i, want := range tt.wantRequests {
-				if !strings.HasPrefix(got[i], "/"+tt.suite.dir+"/"+want) {
+				if !strings.HasPrefix(got[i], "/"+tt.suite.Dir+"/"+want) {
 					t.Errorf("request %d = %s, want %s", i, got[i], want)
 				}
 			}
@@ -337,7 +170,7 @@ func TestReadFallbacks(t *testing.T) {
 }
 
 func TestArchitectureAll(t *testing.T) {
-	signer, keyring := archiveKey(t)
+	signer, keyring := apttest.Key(t)
 	for _, tt := range []struct {
 		name   string
 		fields string
@@ -353,9 +186,9 @@ func TestArchitectureAll(t *testing.T) {
 			if tt.all {
 				indexes["main/binary-all/Packages"] = packages("curl-data")
 			}
-			a := newArchive(t, signer)
-			a.publish(suite{dir: "ubuntu/dists/noble", fields: tt.fields, indexes: indexes, compressions: []string{".xz"}, byHash: true})
-			r, err := a.read(keyring, "noble", "main")
+			a := apttest.New(t, signer, false)
+			a.Publish(apttest.Suite{Dir: "ubuntu/dists/noble", Fields: tt.fields, Indexes: indexes, Compressions: []string{".xz"}, ByHash: true})
+			r, err := read(t, a, keyring, "noble", "main")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -367,53 +200,48 @@ func TestArchitectureAll(t *testing.T) {
 }
 
 func TestReadRejects(t *testing.T) {
-	signer, keyring := archiveKey(t)
-	_, otherKeyring := archiveKey(t)
-	good := suite{
-		dir: "ubuntu/dists/noble", fields: nobleFields, byHash: true, compressions: []string{".xz"},
-		indexes: map[string]string{"main/binary-amd64/Packages": packages("curl")},
+	signer, keyring := apttest.Key(t)
+	_, otherKeyring := apttest.Key(t)
+	good := apttest.Suite{
+		Dir: "ubuntu/dists/noble", Fields: nobleFields, ByHash: true, Compressions: []string{".xz"},
+		Indexes: map[string]string{"main/binary-amd64/Packages": packages("curl")},
 	}
 	for _, tt := range []struct {
 		name       string
-		suite      suite
-		tamper     func(a *archive)
+		suite      apttest.Suite
+		tamper     func(a *apttest.Archive)
 		keyring    *pgp.Keyring
 		suiteName  string
 		components []string
 		want       string
 	}{
 		{name: "unpinned key", suite: good, keyring: otherKeyring, want: "InRelease: signed by key " + signer.Fingerprint() + ", which isn't pinned"},
-		{name: "tampered index", suite: good, tamper: func(a *archive) {
-			for _, name := range []string{"main/binary-amd64/Packages.xz"} {
-				data := compress(a.t, packages("curl", "evil"), ".xz")
-				a.write("ubuntu/dists/noble/"+name, data)
-				entries, _ := os.ReadDir(filepath.Join(a.root, "ubuntu/dists/noble/main/binary-amd64/by-hash/SHA256"))
-				for _, e := range entries {
-					a.write("ubuntu/dists/noble/main/binary-amd64/by-hash/SHA256/"+e.Name(), data)
-				}
-			}
+		{name: "tampered index", suite: good, tamper: func(a *apttest.Archive) {
+			sum := sha256.Sum256(apttest.Compress(t, packages("curl"), ".xz"))
+			evil := apttest.Compress(t, packages("curl", "evil"), ".xz")
+			a.Write("ubuntu/dists/noble/main/binary-amd64/Packages.xz", evil)
+			a.Write("ubuntu/dists/noble/main/binary-amd64/by-hash/SHA256/"+hex.EncodeToString(sum[:]), evil)
 		}, want: "main/binary-amd64/Packages.xz doesn't match the signed Release file"},
-		{name: "tampered InRelease", suite: good, tamper: func(a *archive) {
-			file := filepath.Join(a.root, "ubuntu/dists/noble/InRelease")
-			data, _ := os.ReadFile(file)
-			a.write("ubuntu/dists/noble/InRelease", bytes.Replace(data, []byte("Origin: Ubuntu"), []byte("Origin: Ubunty"), 1))
+		{name: "tampered InRelease", suite: good, tamper: func(a *apttest.Archive) {
+			data := a.Read("ubuntu/dists/noble/InRelease")
+			a.Write("ubuntu/dists/noble/InRelease", bytes.Replace(data, []byte("Origin: Ubuntu"), []byte("Origin: Ubunty"), 1))
 		}, want: "InRelease: bad signature"},
 		// A server, or a mirror on the way, answers for noble-updates with
 		// the Release of noble.
-		{name: "other suite", suite: suite{
-			dir: "ubuntu/dists/noble-updates", fields: nobleFields, compressions: []string{".xz"}, indexes: good.indexes,
+		{name: "other suite", suite: apttest.Suite{
+			Dir: "ubuntu/dists/noble-updates", Fields: nobleFields, Compressions: []string{".xz"}, Indexes: good.Indexes,
 		}, suiteName: "noble-updates", want: `the Release file is for suite "noble" (noble), not "noble-updates"`},
-		{name: "expired", suite: suite{
-			dir: "ubuntu/dists/noble", fields: regexp.MustCompile(`Valid-Until: .*`).ReplaceAllString(nobleFields, "Valid-Until: Sat, 01 Jan 2000 00:00:00 UTC"),
-			compressions: []string{".xz"}, indexes: good.indexes,
+		{name: "expired", suite: apttest.Suite{
+			Dir: "ubuntu/dists/noble", Fields: regexp.MustCompile(`Valid-Until: .*`).ReplaceAllString(nobleFields, "Valid-Until: Sat, 01 Jan 2000 00:00:00 UTC"),
+			Compressions: []string{".xz"}, Indexes: good.Indexes,
 		}, want: "the Release file expired on Sat, 01 Jan 2000 00:00:00 UTC"},
 		{name: "missing component", suite: good, components: []string{"main", "restricted"}, want: "the Release file lists no restricted/binary-amd64/Packages index"},
-		{name: "no InRelease, no Release", suite: suite{dir: "ubuntu/dists/other"}, want: "/ubuntu/dists/noble/Release: 404 Not Found"},
+		{name: "no InRelease, no Release", suite: apttest.Suite{Dir: "ubuntu/dists/other"}, want: "/ubuntu/dists/noble/Release: 404 Not Found"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			a := newArchive(t, signer)
-			if tt.suite.indexes != nil {
-				a.publish(tt.suite)
+			a := apttest.New(t, signer, false)
+			if tt.suite.Indexes != nil {
+				a.Publish(tt.suite)
 			}
 			if tt.tamper != nil {
 				tt.tamper(a)
@@ -425,12 +253,12 @@ func TestReadRejects(t *testing.T) {
 			if components == nil {
 				components = []string{"main"}
 			}
-			_, err := a.read(k, cmp.Or(tt.suiteName, "noble"), components...)
-			if err == nil || !strings.Contains(err.Error(), tt.want) || !strings.HasPrefix(err.Error(), "repository test ("+a.server.URL+"/ubuntu/ ") {
+			_, err := read(t, a, k, cmp.Or(tt.suiteName, "noble"), components...)
+			if err == nil || !strings.Contains(err.Error(), tt.want) || !strings.HasPrefix(err.Error(), "repository test ("+a.URL()+"/ubuntu/ ") {
 				t.Errorf("error = %v, want it to contain %q", err, tt.want)
 			}
 			// A bad InRelease never falls back to the unsigned Release.
-			if slices.Contains(a.requested(), "/ubuntu/dists/noble/Release") && tt.suite.indexes != nil {
+			if slices.Contains(a.Requests(), "/ubuntu/dists/noble/Release") && tt.suite.Indexes != nil {
 				t.Errorf("requested the Release after a bad InRelease")
 			}
 		})

@@ -1,0 +1,167 @@
+/*
+Copyright 2026 The Packtrix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package cli
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"path/filepath"
+	"slices"
+	"strings"
+	"text/tabwriter"
+
+	"github.com/spf13/cobra"
+
+	"github.com/packtrix/packtrix/internal/catalog"
+	"github.com/packtrix/packtrix/internal/expand"
+	"github.com/packtrix/packtrix/internal/fetch"
+	"github.com/packtrix/packtrix/internal/plan"
+	"github.com/packtrix/packtrix/pkg/apis/packtrix/manifest"
+)
+
+func newPlanCommand() *cobra.Command {
+	var file, output, caFile string
+	cmd := &cobra.Command{
+		Use:   "plan",
+		Short: "Resolve every target and show what will be downloaded",
+		Long: `Plan reads and verifies the metadata of every upstream repository, resolves
+the dependencies of each target and architecture, and prints the packages to
+download, with their sizes and why each one is needed. It downloads no
+package.
+
+It plans every target it can, reports every failure, and fails if any target
+failed.`,
+		Example: `  packtrix plan
+  packtrix plan -f examples/k8s-node-prereqs.yaml -o json
+  packtrix plan --ca-file /etc/ssl/certs/corporate-proxy.pem`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if output != "" && output != "json" {
+				return fmt.Errorf("unsupported output format %q (supported: json)", output)
+			}
+			m, err := manifest.LoadFile(file)
+			if err != nil {
+				return err
+			}
+			c, err := catalog.Builtin()
+			if err != nil {
+				return err
+			}
+			client, err := fetch.New(fetch.Options{CAFile: caFile})
+			if err != nil {
+				return err
+			}
+			stderr := cmd.ErrOrStderr()
+			p, err := plan.Run(cmd.Context(), m, c, client, plan.Options{
+				Dir: filepath.Dir(file),
+				Reading: func(target, arch string, r expand.Repository) {
+					fmt.Fprintf(stderr, "Reading %s (%s): %s, %s %s\n", target, arch, r.Name, r.URL, r.Suite)
+				},
+			})
+			if p != nil {
+				var werr error
+				if output == "json" {
+					werr = writeJSON(cmd.OutOrStdout(), p)
+				} else {
+					werr = writePlan(cmd.OutOrStdout(), p)
+				}
+				if err == nil {
+					err = werr
+				}
+			}
+			return err
+		},
+	}
+	addManifestFlag(cmd, &file)
+	cmd.Flags().StringVarP(&output, "output", "o", "", "print the plan as json")
+	cmd.Flags().StringVar(&caFile, "ca-file", "", "PEM file of certificate authorities to trust, such as a TLS-inspecting proxy's")
+	return cmd
+}
+
+func writeJSON(out io.Writer, v any) error {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = out.Write(append(data, '\n'))
+	return err
+}
+
+// writePlan prints, for each target and architecture, its repositories and
+// the packages to download, then the totals. Packages that several targets
+// share count once.
+func writePlan(out io.Writer, p *plan.Plan) error {
+	files := map[string]int64{}
+	for i, t := range p.Targets {
+		if i > 0 {
+			fmt.Fprintln(out)
+		}
+		fmt.Fprintf(out, "%s (%s): %s, %d packages, %s\n", t.Name, t.Architecture, t.Distribution, len(t.Packages), size(t.Size()))
+
+		w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "  REPOSITORY\tSUITE\tPACKAGES\tSIGNED BY")
+		for _, r := range t.Repositories {
+			name := r.Name
+			if r.Extra {
+				name += " (extra)"
+			}
+			fmt.Fprintf(w, "  %s\t%s\t%d\t%s\n", name, r.Suite, r.Packages, r.Signer)
+		}
+		if err := w.Flush(); err != nil {
+			return err
+		}
+		fmt.Fprintln(out)
+		w = tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "  PACKAGE\tVERSION\tSIZE\tWHY")
+		for _, pkg := range t.Packages {
+			why := "listed"
+			if len(pkg.Why) > 0 {
+				chain := slices.Clone(pkg.Why)
+				slices.Reverse(chain)
+				why = strings.Join(chain, " → ")
+			}
+			fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", pkg.Name, pkg.Version, size(pkg.Size), why)
+			files[pkg.SHA256] = pkg.Size
+		}
+		if err := w.Flush(); err != nil {
+			return err
+		}
+		for _, x := range t.Excluded {
+			fmt.Fprintf(out, "  Excluded: %s, needed by %s\n", x.Name, strings.Join(x.NeededBy, ", "))
+		}
+	}
+	var total int64
+	for _, n := range files {
+		total += n
+	}
+	_, err := fmt.Fprintf(out, "\n%d target(s), %d package files to download, %s\n", len(p.Targets), len(files), size(total))
+	return err
+}
+
+// size formats a number of bytes, such as "1.4 MiB".
+func size(n int64) string {
+	if n < 1024 {
+		return fmt.Sprintf("%d B", n)
+	}
+	value, unit := float64(n)/1024, 0
+	for value >= 1024 && unit < 4 {
+		value /= 1024
+		unit++
+	}
+	return fmt.Sprintf("%.1f %ciB", value, "KMGTP"[unit])
+}
