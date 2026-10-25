@@ -61,8 +61,8 @@ Shipping repository definitions and keys makes the built-in catalog a trust anch
 ### Fetching from upstream
 
 - APT security doesn't depend on transport, because the signatures above protect the content. Plain HTTP upstreams such as the Ubuntu archive are fine.
-- Packtrix supports a custom CA bundle and HTTP(S) proxies, for networks that intercept TLS or only reach the internet through a proxy.
-- **Authenticated upstreams** (RHEL subscription certificates, tokens, basic auth) are configured with `auth`, as references to environment variables or files, never as literal values in the manifest.
+- For networks that intercept TLS or only reach the internet through a proxy, Packtrix uses the proxy of `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`, and trusts the system's certificate authorities, those of `SSL_CERT_FILE`, and those of `--ca-file`. When a certificate isn't trusted, the error names the host and suggests `--ca-file`.
+- **Authenticated upstreams** (RHEL subscription certificates, tokens, basic auth, TLS client certificates) are configured with `auth`, as references to environment variables or files, never as literal values in the manifest. Packtrix never prints credentials: messages show URLs without their password, and a redirect to another host doesn't carry the credentials along.
 
 ### Serving on the offline side
 
