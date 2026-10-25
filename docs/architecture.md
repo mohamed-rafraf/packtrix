@@ -159,8 +159,10 @@ internal/deb/                   Debian versions and how they sort, dependency fi
 internal/expand/                manifest + catalog → each target's repositories and packages
 internal/fetch/                 HTTP downloads: proxies, private CAs, credentials, retries, resuming
 internal/pgp/                   signature verification against pinned keys, signing
+internal/plan/                  plan: read the repositories, resolve each target, what to download and why
 internal/resolve/               dependency closure, independent of the package format
 internal/repo/apt/              reading upstream APT repositories: InRelease and Packages, verified
+internal/repo/apt/apttest/      signed APT archives served over HTTP(S), for tests
 internal/resolve/apt/           APT dependency model
 internal/secret/                secret references: env:NAME, file:/path
 pkg/apis/packtrix/              internal manifest API, used by the rest of Packtrix

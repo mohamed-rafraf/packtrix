@@ -18,14 +18,21 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/packtrix/packtrix/internal/cli"
 )
 
 func main() {
-	if err := cli.NewRootCommand().Execute(); err != nil {
+	// Ctrl-C cancels the downloads in flight.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	err := cli.NewRootCommand().ExecuteContext(ctx)
+	stop()
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
