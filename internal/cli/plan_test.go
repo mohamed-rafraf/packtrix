@@ -26,6 +26,7 @@ import (
 
 	"github.com/packtrix/packtrix/internal/plan"
 	"github.com/packtrix/packtrix/internal/repo/apt/apttest"
+	"github.com/packtrix/packtrix/pkg/apis/packtrix/manifest"
 )
 
 // planFixture writes a manifest whose target reads a local HTTPS archive,
@@ -126,10 +127,65 @@ func TestPlan(t *testing.T) {
 	}
 }
 
+// plan writes the lock next to the manifest, and planning the same thing
+// again writes the same bytes.
+func TestPlanWritesLock(t *testing.T) {
+	path, caFile := planFixture(t, "[curl]")
+	lockPath := filepath.Join(filepath.Dir(path), "packtrix.lock")
+	var locks [][]byte
+	for i, want := range []string{"Wrote " + lockPath, lockPath + " is unchanged"} {
+		out, err := run(t, "plan", "-f", path, "--ca-file", caFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(out, want+"\n") {
+			t.Errorf("run %d: output is missing %q:\n%s", i+1, want, out)
+		}
+		data, err := os.ReadFile(lockPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		locks = append(locks, data)
+	}
+	if !bytes.Equal(locks[0], locks[1]) {
+		t.Error("planning twice wrote different locks")
+	}
+	l, err := manifest.LoadLockFile(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := manifest.LoadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manifest.CheckLock(l, m); err != nil {
+		t.Error(err)
+	}
+	if len(l.Spec.Targets) != 1 || len(l.Spec.Targets[0].Packages) != 2 || l.Spec.Catalog == "" {
+		t.Errorf("lock = %+v", l)
+	}
+
+	other := filepath.Join(t.TempDir(), "other.lock")
+	if _, err := run(t, "plan", "-f", path, "--ca-file", caFile, "--lock", other); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(other); err != nil || !bytes.Equal(data, locks[0]) {
+		t.Errorf("--lock wrote %d bytes, %v", len(data), err)
+	}
+}
+
 func TestPlanErrors(t *testing.T) {
 	manifest, caFile := planFixture(t, "[curl, nope]")
-	if _, err := run(t, "plan", "-f", manifest, "--ca-file", caFile); err == nil || err.Error() != "target internal (amd64): no package nope in the target's repositories" {
+	out, err := run(t, "plan", "-f", manifest, "--ca-file", caFile)
+	if err == nil || err.Error() != "target internal (amd64): no package nope in the target's repositories" {
 		t.Errorf("error = %v", err)
+	}
+	// No lock when a target fails.
+	if !strings.Contains(out, "packtrix.lock wasn't written: it is only written when every target is planned") {
+		t.Errorf("output = %q", out)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(manifest), "packtrix.lock")); !os.IsNotExist(err) {
+		t.Errorf("a lock was written: %v", err)
 	}
 	// Without the CA, the archive's certificate isn't trusted.
 	if _, err := run(t, "plan", "-f", manifest); err == nil || !strings.Contains(err.Error(), "pass its certificate with --ca-file") {

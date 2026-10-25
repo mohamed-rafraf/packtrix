@@ -29,7 +29,7 @@ import (
 )
 
 // Every field must survive a conversion to the internal API and back, in both
-// directions, or information in a manifest would be lost.
+// directions, or information in a manifest or a lock would be lost.
 func TestConversionRoundTrip(t *testing.T) {
 	scheme := runtime.NewScheme()
 	for _, add := range []func(*runtime.Scheme) error{packtrix.AddToScheme, AddToScheme} {
@@ -50,6 +50,16 @@ func TestConversionRoundTrip(t *testing.T) {
 		filler.Fill(&internal)
 		internal.TypeMeta = metav1.TypeMeta{}
 		roundTrip(t, scheme, &internal, &OfflineRepository{}, &packtrix.OfflineRepository{})
+
+		var versionedLock Lock
+		filler.Fill(&versionedLock)
+		versionedLock.TypeMeta = metav1.TypeMeta{}
+		roundTrip(t, scheme, &versionedLock, &packtrix.Lock{}, &Lock{})
+
+		var internalLock packtrix.Lock
+		filler.Fill(&internalLock)
+		internalLock.TypeMeta = metav1.TypeMeta{}
+		roundTrip(t, scheme, &internalLock, &Lock{}, &packtrix.Lock{})
 	}
 }
 

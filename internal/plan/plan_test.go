@@ -30,6 +30,7 @@ import (
 	"github.com/packtrix/packtrix/internal/fetch"
 	"github.com/packtrix/packtrix/internal/repo/apt/apttest"
 	"github.com/packtrix/packtrix/pkg/apis/packtrix/manifest"
+	"github.com/packtrix/packtrix/pkg/apis/packtrix/validation"
 )
 
 // pkg is a paragraph of a Packages index.
@@ -180,6 +181,16 @@ func TestRun(t *testing.T) {
 	}
 	if len(target.Repositories) != 2 || target.Repositories[1].Name != "updates" || target.Repositories[1].Packages != 5 || target.Repositories[1].Signer == "" {
 		t.Errorf("repositories = %+v", target.Repositories)
+	}
+
+	l := p.Lock("test", "sha256:"+strings.Repeat("0", 64), "test")
+	if err := validation.ValidateLock(l); err != nil {
+		t.Fatalf("the lock isn't valid: %v", err)
+	}
+	lt := l.Spec.Targets[0]
+	if l.Name != "test" || lt.Format != "apt" || lt.Distribution != "Debian test" || !strings.HasPrefix(lt.Repositories[0].Release, "sha256:") ||
+		!reflect.DeepEqual(lt.Repositories[0].Components, []string{"main"}) || !reflect.DeepEqual(lt.Packages[3].Why, []string{"libcurl4", "curl"}) || lt.Packages[0].URL != curl.URL {
+		t.Errorf("lock = %+v", l)
 	}
 }
 

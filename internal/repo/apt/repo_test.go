@@ -102,7 +102,7 @@ func TestRead(t *testing.T) {
 	if got := names(r); !slices.Equal(got, []string{"curl", "libcurl4", "jq"}) {
 		t.Errorf("packages = %q", got)
 	}
-	if r.Signer != signer.Fingerprint() || r.Release.Origin != "Ubuntu" || r.Release.Version != "24.04" || r.Release.Distribution() != "Ubuntu noble" {
+	if r.Signer != signer.Fingerprint() || r.Release.Origin != "Ubuntu" || r.Release.Version != "24.04" || r.Release.Distribution() != "Ubuntu noble" || !strings.HasPrefix(r.Digest, "sha256:") || len(r.Digest) != 71 {
 		t.Errorf("repository = %+v, release = %+v", r, r.Release)
 	}
 	curl := r.Indexes[0].Packages[0]

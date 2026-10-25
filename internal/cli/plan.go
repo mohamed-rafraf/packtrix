@@ -35,7 +35,7 @@ import (
 )
 
 func newPlanCommand() *cobra.Command {
-	var file, output, caFile string
+	var file, output, caFile, lockFile string
 	cmd := &cobra.Command{
 		Use:   "plan",
 		Short: "Resolve every target and show what will be downloaded",
@@ -44,8 +44,11 @@ the dependencies of each target and architecture, and prints the packages to
 download, with their sizes and why each one is needed. It downloads no
 package.
 
+It writes the result to packtrix.lock, next to the manifest, which sync
+carries out. Commit it: an update is a diff of the lock.
+
 It plans every target it can, reports every failure, and fails if any target
-failed.`,
+failed. The lock is only written when every target is planned.`,
 		Example: `  packtrix plan
   packtrix plan -f examples/k8s-node-prereqs.yaml -o json
   packtrix plan --ca-file /etc/ssl/certs/corporate-proxy.pem`,
@@ -84,12 +87,33 @@ failed.`,
 					err = werr
 				}
 			}
-			return err
+			if lockFile == "" {
+				lockFile = filepath.Join(filepath.Dir(file), manifest.LockName)
+			}
+			if err != nil {
+				fmt.Fprintf(stderr, "%s wasn't written: it is only written when every target is planned\n", lockFile)
+				return err
+			}
+			digest, err := manifest.Digest(m)
+			if err != nil {
+				return err
+			}
+			changed, err := manifest.WriteLockFile(lockFile, p.Lock(m.Name, digest, c.Version))
+			if err != nil {
+				return err
+			}
+			if changed {
+				fmt.Fprintf(stderr, "Wrote %s\n", lockFile)
+			} else {
+				fmt.Fprintf(stderr, "%s is unchanged\n", lockFile)
+			}
+			return nil
 		},
 	}
 	addManifestFlag(cmd, &file)
 	cmd.Flags().StringVarP(&output, "output", "o", "", "print the plan as json")
 	cmd.Flags().StringVar(&caFile, "ca-file", "", "PEM file of certificate authorities to trust, such as a TLS-inspecting proxy's")
+	cmd.Flags().StringVar(&lockFile, "lock", "", "path of the lock to write (default packtrix.lock next to the manifest)")
 	return cmd
 }
 

@@ -40,11 +40,11 @@ The code is organized as follows:
 | `internal/resolve/` | The dependency closure, which doesn't know APT or RPM |
 | `internal/resolve/apt/` | The APT dependency model: which packages satisfy a dependency |
 | `internal/secret/` | Reading the secrets a manifest references, such as the signing key |
-| `pkg/apis/packtrix/` | The internal manifest API, which the rest of Packtrix uses |
-| `pkg/apis/packtrix/v1alpha1/` | The `v1alpha1` manifest format: types, defaults, conversion to the internal API |
+| `pkg/apis/packtrix/` | The internal API of manifests and locks, which the rest of Packtrix uses |
+| `pkg/apis/packtrix/v1alpha1/` | The `v1alpha1` format of manifests and locks: types, defaults, conversion to the internal API |
 | `pkg/apis/packtrix/scheme/` | Registers every API version |
 | `pkg/apis/packtrix/validation/` | Validation of the internal API |
-| `pkg/apis/packtrix/manifest/` | Reading and writing manifest files |
+| `pkg/apis/packtrix/manifest/` | Reading and writing manifests and their locks (`packtrix.lock`) |
 | `site/` | The website: a Hugo site that renders `docs/` and adds the landing page |
 
 A change to the manifest format changes the types in both `pkg/apis/packtrix/` and `v1alpha1/`. Defaults go in `v1alpha1/defaults.go` as `SetDefaults_<Type>` functions. Then run `make update-codegen` and commit the generated files; pull requests check that they are up to date. Never edit `zz_generated.*.go` by hand.

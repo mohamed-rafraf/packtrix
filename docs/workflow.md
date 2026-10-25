@@ -26,7 +26,7 @@ Packtrix runs in two places:
 | `packtrix init` | connected | Write a starter manifest, e.g. `--target ubuntu-24.04 --target rocky-9` |
 | `packtrix validate` | both | Check the manifest without network access |
 | `packtrix render` | connected | Print the fully expanded manifest: every built-in name replaced by its URLs, components and key fingerprints |
-| `packtrix plan` | connected | Resolve dependencies, write `packtrix.lock`, and print what changes and how much will be downloaded. `-o json` for scripts, `--ca-file` for a private certificate authority. |
+| `packtrix plan` | connected | Resolve dependencies, write `packtrix.lock`, and print what changes and how much will be downloaded. `-o json` for scripts, `--ca-file` for a private certificate authority, `--lock` to write the lock elsewhere. Nothing is written unless every target is planned. |
 | `packtrix sync` | connected | Carry out the lockfile: download, verify, build a snapshot, publish it. With `--verify-install`, first test-install it in containers. |
 | `packtrix check` | connected | A cheap check of whether any upstream repository changed. Exit code `0` = no change, `2` = changes, `1` = error. |
 | `packtrix export` | connected | Write a bundle: full, or `--since <old lockfile>` for a delta |

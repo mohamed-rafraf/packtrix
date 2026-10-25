@@ -42,8 +42,9 @@ type Plan struct {
 
 // Target is the plan of one target and architecture.
 type Target struct {
-	Name         string `json:"name"`
-	Architecture string `json:"architecture"`
+	Name         string            `json:"name"`
+	Architecture string            `json:"architecture"`
+	Format       packtrix.RepoType `json:"format"`
 	// Distribution is what the repositories' Release files say, such as
 	// "Ubuntu noble".
 	Distribution string       `json:"distribution"`
@@ -57,9 +58,12 @@ type Target struct {
 
 // Repository is an upstream repository, as it was read.
 type Repository struct {
-	Name  string `json:"name"`
-	URL   string `json:"url"`
-	Suite string `json:"suite"`
+	Name       string   `json:"name"`
+	URL        string   `json:"url"`
+	Suite      string   `json:"suite"`
+	Components []string `json:"components,omitempty"`
+	// Release is the digest of its verified Release file.
+	Release string `json:"release"`
 	// Signer is the fingerprint of the key that signed its Release.
 	Signer string `json:"signer"`
 	// Packages is the number of packages its indexes list.
@@ -86,6 +90,29 @@ type Package struct {
 type Exclusion struct {
 	Name     string   `json:"name"`
 	NeededBy []string `json:"neededBy"`
+}
+
+// Lock returns the lock of a plan, for the manifest of this name and
+// digest and the catalog of this version.
+func (p *Plan) Lock(name, manifestDigest, catalogVersion string) *packtrix.Lock {
+	l := &packtrix.Lock{Spec: packtrix.LockSpec{Manifest: manifestDigest, Catalog: catalogVersion}}
+	l.Name = name
+	for _, t := range p.Targets {
+		lt := packtrix.LockTarget{Name: t.Name, Architecture: t.Architecture, Format: t.Format, Distribution: t.Distribution}
+		for _, r := range t.Repositories {
+			lt.Repositories = append(lt.Repositories, packtrix.LockRepository{
+				Name: r.Name, URL: r.URL, Suite: r.Suite, Components: r.Components, Release: r.Release, Signer: r.Signer,
+			})
+		}
+		for _, pkg := range t.Packages {
+			lt.Packages = append(lt.Packages, packtrix.LockPackage{
+				Name: pkg.Name, Version: pkg.Version, Architecture: pkg.Architecture, Repository: pkg.Repository,
+				URL: pkg.URL, SHA256: pkg.SHA256, Size: pkg.Size, Why: pkg.Why,
+			})
+		}
+		l.Spec.Targets = append(l.Spec.Targets, lt)
+	}
+	return l
 }
 
 // Size returns the total size of the target's packages.
@@ -134,7 +161,7 @@ func Run(ctx context.Context, m *packtrix.OfflineRepository, c *catalog.Catalog,
 }
 
 func planTarget(ctx context.Context, settings packtrix.Resolve, t expand.Target, a expand.Architecture, client *fetch.Client, opts Options) (*Target, error) {
-	out := &Target{Name: t.Name, Architecture: a.Name}
+	out := &Target{Name: t.Name, Architecture: a.Name, Format: t.Format}
 
 	// Read every repository, reporting every one that fails.
 	var repos, base []*repoapt.Repository
@@ -159,7 +186,8 @@ func planTarget(ctx context.Context, settings packtrix.Resolve, t expand.Target,
 			base = append(base, repo)
 		}
 		out.Repositories = append(out.Repositories, Repository{
-			Name: r.Name, URL: r.URL, Suite: r.Suite, Signer: repo.Signer, Packages: len(repo.Packages()), Extra: r.Extra,
+			Name: r.Name, URL: r.URL, Suite: r.Suite, Components: r.Components,
+			Release: repo.Digest, Signer: repo.Signer, Packages: len(repo.Packages()), Extra: r.Extra,
 		})
 	}
 	if len(errs) > 0 {

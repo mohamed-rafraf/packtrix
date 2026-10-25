@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package manifest reads and writes Packtrix manifests. A manifest in any
-// supported API version is decoded, defaulted with that version's defaults,
-// and converted to the internal API.
+// Package manifest reads and writes Packtrix's files: manifests and their
+// locks. A file in any supported API version is decoded, defaulted with that
+// version's defaults, and converted to the internal API.
 package manifest
 
 import (
@@ -39,6 +39,9 @@ import (
 // kind is the kind of manifest Packtrix reads.
 var kind = packtrix.Kind("OfflineRepository")
 
+// manifestFile names manifests in messages.
+const manifestFile = "manifest"
+
 // Parse decodes a YAML manifest, applies the defaults of its API version and
 // converts it to the internal API. It rejects unknown and duplicate fields,
 // but doesn't validate; LoadFile does.
@@ -50,7 +53,7 @@ func Parse(data []byte) (*packtrix.OfflineRepository, error) {
 	if err := yaml.Unmarshal(data, &meta); err != nil {
 		return nil, decodeError(err)
 	}
-	versioned, err := newVersioned(meta)
+	versioned, err := newVersioned(meta, kind, manifestFile)
 	if err != nil {
 		return nil, err
 	}
@@ -90,17 +93,17 @@ func Marshal(r *packtrix.OfflineRepository) ([]byte, error) {
 	return yaml.Marshal(versioned)
 }
 
-// newVersioned returns an empty object of the manifest's API version, or an
+// newVersioned returns an empty object of the file's API version, or an
 // error naming the supported versions.
-func newVersioned(meta metav1.TypeMeta) (runtime.Object, error) {
+func newVersioned(meta metav1.TypeMeta, kind schema.GroupKind, file string) (runtime.Object, error) {
 	gvk := meta.GroupVersionKind()
 	if gvk.GroupKind() == kind && gvk.Version != runtime.APIVersionInternal {
 		if obj, err := scheme.Scheme.New(gvk); err == nil {
 			return obj, nil
 		}
 	}
-	return nil, fmt.Errorf("unsupported manifest (apiVersion %q, kind %q): expected apiVersion %q and kind %q",
-		meta.APIVersion, meta.Kind, preferredVersion(), kind.Kind)
+	return nil, fmt.Errorf("unsupported %s (apiVersion %q, kind %q): expected apiVersion %q and kind %q",
+		file, meta.APIVersion, meta.Kind, preferredVersion(), kind.Kind)
 }
 
 func preferredVersion() schema.GroupVersion {
