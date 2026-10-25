@@ -1,0 +1,155 @@
+/*
+Copyright 2026 The Packtrix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package build
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/packtrix/packtrix/internal/catalog"
+	"github.com/packtrix/packtrix/internal/download"
+	"github.com/packtrix/packtrix/internal/expand"
+	"github.com/packtrix/packtrix/internal/fetch"
+	"github.com/packtrix/packtrix/internal/plan"
+	"github.com/packtrix/packtrix/internal/pool"
+	repoapt "github.com/packtrix/packtrix/internal/repo/apt"
+	"github.com/packtrix/packtrix/internal/repo/apt/apttest"
+	"github.com/packtrix/packtrix/pkg/apis/packtrix/manifest"
+)
+
+// TestLiveAPTGet builds a repository of curl for Ubuntu 24.04 from the real
+// archive, and has apt-get, when it is installed, read it with only the
+// published key trusted and download curl from it.
+func TestLiveAPTGet(t *testing.T) {
+	if testing.Short() {
+		t.Skip("downloads from the Ubuntu archive")
+	}
+	m, err := manifest.Parse([]byte("apiVersion: packtrix.io/v1alpha1\nkind: OfflineRepository\nmetadata:\n  name: live\nspec:\n  targets:\n    - distro: ubuntu-24.04\n  packages: [curl]\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := catalog.Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := fetch.New(fetch.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cache, err := pool.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	packages, err := pool.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	expanded, err := expand.Expand(m, c, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := plan.Run(t.Context(), m, c, client, plan.Options{Cache: cache})
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := p.Lock(m.Name, "sha256:"+strings.Repeat("0", 64), c.Version)
+	if _, err := download.Packages(t.Context(), client, packages, l, download.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	signer, _ := apttest.Key(t)
+	dir := t.TempDir()
+	targets, err := APT(t.Context(), l, expanded, dir, Options{Reader: &repoapt.Reader{Client: client, Cache: cache}, Packages: packages, Signer: signer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", targets)
+
+	aptGet, err := exec.LookPath("apt-get")
+	if err != nil {
+		t.Skip("apt-get isn't installed")
+	}
+	server := httptest.NewServer(http.FileServer(http.Dir(targets[0].Dir)))
+	defer server.Close()
+
+	// apt's state lives in a temporary directory, and trusts only the
+	// published key.
+	state := t.TempDir()
+	public, err := signer.PublicKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range []string{"sources.list.d", "trusted.gpg.d", "lists/partial", "archives/partial", "download"} {
+		if err := os.MkdirAll(filepath.Join(state, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	key := filepath.Join(state, "packtrix.asc")
+	sources := "Types: deb\nURIs: " + server.URL + "/\nSuites: noble\nComponents: main\nSigned-By: " + key + "\n"
+	for name, data := range map[string][]byte{"packtrix.asc": public, "sources.list.d/packtrix.sources": []byte(sources)} {
+		if err := os.WriteFile(filepath.Join(state, name), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	apt := func(args ...string) string {
+		t.Helper()
+		options := []string{
+			"-o", "Dir::Etc::SourceList=/dev/null",
+			"-o", "Dir::Etc::SourceParts=" + filepath.Join(state, "sources.list.d"),
+			"-o", "Dir::Etc::Trusted=/dev/null",
+			"-o", "Dir::Etc::TrustedParts=" + filepath.Join(state, "trusted.gpg.d"),
+			"-o", "Dir::State::Lists=" + filepath.Join(state, "lists"),
+			"-o", "Dir::Cache=" + state,
+			"-o", "Dir::Cache::Archives=" + filepath.Join(state, "archives"),
+			"-o", "Debug::NoLocking=1",
+		}
+		cmd := exec.CommandContext(t.Context(), aptGet, append(options, args...)...)
+		cmd.Dir = filepath.Join(state, "download")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("apt-get %s: %v\n%s", strings.Join(args, " "), err, out)
+		}
+		return string(out)
+	}
+
+	out := apt("update")
+	t.Log(out)
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "W:") || strings.HasPrefix(line, "E:") || strings.HasPrefix(line, "N:") {
+			t.Errorf("apt-get update: %s", line)
+		}
+	}
+	t.Log(apt("download", "curl"))
+	curl := l.Spec.Targets[0].Packages[0]
+	debs, _ := filepath.Glob(filepath.Join(state, "download", "curl_*.deb"))
+	if len(debs) != 1 {
+		t.Fatalf("apt-get download wrote %q", debs)
+	}
+	data, err := os.ReadFile(debs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum := sha256.Sum256(data); hex.EncodeToString(sum[:]) != curl.SHA256 {
+		t.Errorf("apt-get downloaded a curl that doesn't match the lock")
+	}
+}

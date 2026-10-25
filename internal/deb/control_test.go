@@ -111,3 +111,22 @@ func TestReadParagraphsStops(t *testing.T) {
 		t.Errorf("got %v, want the reader's error", err)
 	}
 }
+
+func TestReadRawParagraphs(t *testing.T) {
+	text := "Package: curl\nVersion: 8.5.0\n# a comment\nDescription: a tool\n multiline\n .\n\nPackage: jq\nVersion: 1.7\n"
+	var raws []string
+	err := ReadRawParagraphs(strings.NewReader(text), func(p Paragraph) error {
+		raws = append(raws, p.Raw())
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"Package: curl\nVersion: 8.5.0\nDescription: a tool\n multiline\n .\n", "Package: jq\nVersion: 1.7\n"}
+	if strings.Join(raws, "|") != strings.Join(want, "|") {
+		t.Errorf("raw = %q, want %q", raws, want)
+	}
+	if ps := readAll(t, text); ps[0].Raw() != "" {
+		t.Errorf("ReadParagraphs kept the text: %q", ps[0].Raw())
+	}
+}

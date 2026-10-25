@@ -151,9 +151,9 @@ func TestPlanWritesLock(t *testing.T) {
 	if !bytes.Equal(locks[0], locks[1]) {
 		t.Error("planning twice wrote different locks")
 	}
-	// The verified index is in the cache.
-	if cached, _ := filepath.Glob(filepath.Join(cacheDir, "indexes", "sha256", "*", "*")); len(cached) != 1 {
-		t.Errorf("the cache holds %q, want the index", cached)
+	// The verified Release and its index are in the cache.
+	if cached, _ := filepath.Glob(filepath.Join(cacheDir, "indexes", "sha256", "*", "*")); len(cached) != 2 {
+		t.Errorf("the cache holds %q, want the Release and the index", cached)
 	}
 	l, err := manifest.LoadLockFile(lockPath)
 	if err != nil {
