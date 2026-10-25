@@ -95,8 +95,10 @@ Containers are used for these checks only. Producing repositories never needs th
 ## Fetching and the package pool
 
 - Every package file is checked against the SHA-256 in the upstream index, and that index is checked against the upstream signature (see [Security](security.md)).
-- Files are stored once, by hash: `pool/sha256/ab/abcdef…`. Snapshots and targets reference the pool. The same `kubelet.deb` from the Kubernetes repository is stored once even when three Debian-family targets use it.
+- Files are stored once, by hash: `pool/sha256/ab/abcdef…`, read-only. Snapshots and targets reference the pool. The same `kubelet.deb` from the Kubernetes repository is stored once even when three Debian-family targets use it.
+- A download goes to `pool/partial/<sha256>` first. It only moves into the pool once its size and SHA-256 match, so an interrupted or corrupted download never appears there. The partial file keeps its name across runs, so the next run resumes it; one that doesn't match is deleted, and the next run starts over.
 - Downloads are resumable and cached across runs. A `sync` after a small upstream change downloads only the changed files.
+- Upstream indexes are cached the same way, by the SHA-256 that the signed `Release` file gives, in `$XDG_CACHE_HOME/packtrix/indexes` (usually `~/.cache/packtrix`, or `--cache-dir`). The `Release` file is always fetched, since it says what is current; an index the cache holds isn't. Cached files are checked against their hash each time they are read, and indexes that no run used for 30 days are removed.
 
 ## Building repository metadata
 
@@ -160,6 +162,7 @@ internal/expand/                manifest + catalog → each target's repositorie
 internal/fetch/                 HTTP downloads: proxies, private CAs, credentials, retries, resuming
 internal/pgp/                   signature verification against pinned keys, signing
 internal/plan/                  plan: read the repositories, resolve each target, what to download and why
+internal/pool/                  files stored by SHA-256: the package pool, the index cache
 internal/resolve/               dependency closure, independent of the package format
 internal/repo/apt/              reading upstream APT repositories: InRelease and Packages, verified
 internal/repo/apt/apttest/      signed APT archives served over HTTP(S), for tests
@@ -179,7 +182,6 @@ Planned:
 ```
 internal/catalog/      vendor repositories, auto-detection
 internal/resolve/      RPM dependency model, baselines
-internal/pool/         content-addressed package pool, metadata cache
 internal/repo/apt/     APT metadata subsetting and signing
 internal/repo/rpm/     RPM metadata subsetting and signing
 internal/lock/         lockfile diff

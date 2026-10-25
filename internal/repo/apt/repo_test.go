@@ -22,6 +22,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/packtrix/packtrix/internal/fetch"
 	"github.com/packtrix/packtrix/internal/pgp"
+	"github.com/packtrix/packtrix/internal/pool"
 	"github.com/packtrix/packtrix/internal/repo/apt/apttest"
 )
 
@@ -55,7 +57,7 @@ func read(t *testing.T, a *apttest.Archive, keyring *pgp.Keyring, suiteName stri
 	}
 	a.ResetRequests()
 	src := Source{Name: "test", URL: a.URL() + "/ubuntu/", Suite: suiteName, Components: components, Keyring: keyring}
-	return Read(t.Context(), c, src, "amd64")
+	return (&Reader{Client: c}).Read(t.Context(), src, "amd64")
 }
 
 func validUntil(d time.Duration) string {
@@ -302,4 +304,53 @@ func TestCheckSameRelease(t *testing.T) {
 			t.Errorf("CheckSameRelease = %v, want %q", err, tt.want)
 		}
 	}
+}
+
+func TestReadCache(t *testing.T) {
+	signer, keyring := apttest.Key(t)
+	a := apttest.New(t, signer, false)
+	a.Publish(apttest.Suite{
+		Dir: "ubuntu/dists/noble", Fields: nobleFields, ByHash: true, Compressions: []string{".xz"},
+		Indexes: map[string]string{"main/binary-amd64/Packages": packages("curl")},
+	})
+	cache, err := pool.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := fetch.New(fetch.Options{Retries: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := &Reader{Client: client, Cache: cache}
+	src := Source{Name: "test", URL: a.URL() + "/ubuntu/", Suite: "noble", Components: []string{"main"}, Keyring: keyring}
+	read := func(wantRequests int) {
+		t.Helper()
+		a.ResetRequests()
+		r, err := reader.Read(t.Context(), src, "amd64")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := names(r); !slices.Equal(got, []string{"curl"}) {
+			t.Errorf("packages = %q", got)
+		}
+		if got := a.Requests(); len(got) != wantRequests {
+			t.Errorf("requests = %q, want %d", got, wantRequests)
+		}
+	}
+
+	read(2)
+	// The Release is always fetched; the index comes from the cache.
+	read(1)
+
+	// A cached index changed behind Packtrix's back is fetched again.
+	sum := sha256.Sum256(apttest.Compress(t, packages("curl"), ".xz"))
+	cached := cache.Path(hex.EncodeToString(sum[:]))
+	if err := os.Chmod(cached, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cached, []byte("tampered"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	read(2)
+	read(1)
 }

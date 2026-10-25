@@ -29,6 +29,7 @@ import (
 	"github.com/packtrix/packtrix/internal/deb"
 	"github.com/packtrix/packtrix/internal/expand"
 	"github.com/packtrix/packtrix/internal/fetch"
+	"github.com/packtrix/packtrix/internal/pool"
 	repoapt "github.com/packtrix/packtrix/internal/repo/apt"
 	"github.com/packtrix/packtrix/internal/resolve"
 	aptmodel "github.com/packtrix/packtrix/internal/resolve/apt"
@@ -128,6 +129,8 @@ func (t Target) Size() int64 {
 type Options struct {
 	// Dir is the manifest's directory, which relative paths start from.
 	Dir string
+	// Cache, if set, keeps the verified indexes across runs.
+	Cache *pool.Pool
 	// Reading, if set, is told about each repository before it is read.
 	Reading func(target, arch string, r expand.Repository)
 }
@@ -149,7 +152,7 @@ func Run(ctx context.Context, m *packtrix.OfflineRepository, c *catalog.Catalog,
 			continue
 		}
 		for _, a := range t.Architectures {
-			pt, err := planTarget(ctx, m.Spec.Resolve, t, a, client, opts)
+			pt, err := planTarget(ctx, m.Spec.Resolve, t, a, &repoapt.Reader{Client: client, Cache: opts.Cache}, opts)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("target %s (%s): %w", t.Name, a.Name, err))
 				continue
@@ -160,7 +163,7 @@ func Run(ctx context.Context, m *packtrix.OfflineRepository, c *catalog.Catalog,
 	return p, errors.Join(errs...)
 }
 
-func planTarget(ctx context.Context, settings packtrix.Resolve, t expand.Target, a expand.Architecture, client *fetch.Client, opts Options) (*Target, error) {
+func planTarget(ctx context.Context, settings packtrix.Resolve, t expand.Target, a expand.Architecture, reader *repoapt.Reader, opts Options) (*Target, error) {
 	out := &Target{Name: t.Name, Architecture: a.Name, Format: t.Format}
 
 	// Read every repository, reporting every one that fails.
@@ -176,7 +179,7 @@ func planTarget(ctx context.Context, settings packtrix.Resolve, t expand.Target,
 			continue
 		}
 		src := repoapt.Source{Name: r.Name, URL: r.URL, Suite: r.Suite, Components: r.Components, Keyring: r.Keyring(), Auth: auth}
-		repo, err := repoapt.Read(ctx, client, src, a.Name)
+		repo, err := reader.Read(ctx, src, a.Name)
 		if err != nil {
 			errs = append(errs, err)
 			continue

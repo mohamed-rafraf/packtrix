@@ -36,6 +36,7 @@ import (
 	"github.com/packtrix/packtrix/internal/deb"
 	"github.com/packtrix/packtrix/internal/fetch"
 	"github.com/packtrix/packtrix/internal/pgp"
+	"github.com/packtrix/packtrix/internal/pool"
 )
 
 // now is the time that Valid-Until is checked against. Tests change it.
@@ -53,6 +54,15 @@ type Source struct {
 	// Keyring holds the keys that may sign the repository.
 	Keyring *pgp.Keyring
 	Auth    *fetch.Auth
+}
+
+// Reader reads APT repositories.
+type Reader struct {
+	Client *fetch.Client
+	// Cache, if set, keeps the verified indexes across runs: an index that
+	// a Release lists with a SHA-256 the cache holds isn't fetched again.
+	// The Release itself is always fetched, since it says what is current.
+	Cache *pool.Pool
 }
 
 // Repository is an upstream APT repository, read and verified for one
@@ -102,9 +112,9 @@ func (r *Repository) Packages() []*deb.Package {
 //     against the size and SHA-256 that the Release gives. Indexes are
 //     fetched by hash when the repository allows it, compressed with xz or
 //     gzip when it offers them.
-func Read(ctx context.Context, c *fetch.Client, src Source, arch string) (*Repository, error) {
+func (rd *Reader) Read(ctx context.Context, src Source, arch string) (*Repository, error) {
 	r := &Repository{Name: src.Name, URL: src.URL, Suite: src.Suite}
-	if err := r.read(ctx, c, src, arch); err != nil {
+	if err := r.read(ctx, rd, src, arch); err != nil {
 		return nil, fmt.Errorf("repository %s (%s %s): %w", src.Name, src.URL, src.Suite, err)
 	}
 	return r, nil
@@ -115,14 +125,14 @@ func flat(suite string) bool {
 	return strings.HasSuffix(suite, "/")
 }
 
-func (r *Repository) read(ctx context.Context, c *fetch.Client, repo Source, arch string) error {
+func (r *Repository) read(ctx context.Context, rd *Reader, repo Source, arch string) error {
 	auth := repo.Auth
 	dir := strings.TrimSuffix(repo.URL, "/") + "/dists/" + repo.Suite + "/"
 	if flat(repo.Suite) {
 		dir = strings.TrimSuffix(repo.URL, "/") + "/" + strings.TrimPrefix(strings.TrimPrefix(repo.Suite, "."), "/")
 	}
 
-	text, err := r.readRelease(ctx, c, repo, dir)
+	text, err := r.readRelease(ctx, rd.Client, repo, dir)
 	if err != nil {
 		return err
 	}
@@ -140,7 +150,7 @@ func (r *Repository) read(ctx context.Context, c *fetch.Client, repo Source, arc
 	}
 
 	if flat(repo.Suite) {
-		packages, err := r.readIndex(ctx, c, auth, dir, "Packages")
+		packages, err := r.readIndex(ctx, rd, auth, dir, "Packages")
 		if err != nil {
 			return err
 		}
@@ -153,7 +163,7 @@ func (r *Repository) read(ctx context.Context, c *fetch.Client, repo Source, arc
 			archs = append(archs, "all")
 		}
 		for _, a := range archs {
-			packages, err := r.readIndex(ctx, c, auth, dir, component+"/binary-"+a+"/Packages")
+			packages, err := r.readIndex(ctx, rd, auth, dir, component+"/binary-"+a+"/Packages")
 			if err != nil {
 				return err
 			}
@@ -208,14 +218,14 @@ func listed(rel *Release, index string) bool {
 
 // readIndex fetches a Packages index, checks it against the Release, and
 // reads its packages.
-func (r *Repository) readIndex(ctx context.Context, c *fetch.Client, auth *fetch.Auth, dir, index string) ([]*deb.Package, error) {
+func (r *Repository) readIndex(ctx context.Context, rd *Reader, auth *fetch.Auth, dir, index string) ([]*deb.Package, error) {
 	for _, ext := range compressions {
 		file, ok := r.Release.Files[index+ext]
 		if !ok {
 			continue
 		}
 		name := index + ext
-		data, err := r.fetchFile(ctx, c, auth, dir, name, file)
+		data, err := r.fetchFile(ctx, rd, auth, dir, name, file)
 		if err != nil {
 			return nil, err
 		}
@@ -229,8 +239,17 @@ func (r *Repository) readIndex(ctx context.Context, c *fetch.Client, auth *fetch
 }
 
 // fetchFile fetches a file that the Release lists, by hash when the
-// repository allows it, and checks its size and SHA-256.
-func (r *Repository) fetchFile(ctx context.Context, c *fetch.Client, auth *fetch.Auth, dir, name string, want File) ([]byte, error) {
+// repository allows it, and checks its size and SHA-256. A file the cache
+// holds isn't fetched again.
+func (r *Repository) fetchFile(ctx context.Context, rd *Reader, auth *fetch.Auth, dir, name string, want File) ([]byte, error) {
+	if rd.Cache != nil {
+		// The cache checks the content against the hash as it reads.
+		if data, ok, err := rd.Cache.Read(want.SHA256); err == nil && ok && int64(len(data)) == want.Size {
+			_ = rd.Cache.Touch(want.SHA256)
+			return data, nil
+		}
+	}
+	c := rd.Client
 	var data []byte
 	var err error
 	if r.Release.AcquireByHash {
@@ -245,6 +264,10 @@ func (r *Repository) fetchFile(ctx context.Context, c *fetch.Client, auth *fetch
 	sum := sha256.Sum256(data)
 	if got := hex.EncodeToString(sum[:]); int64(len(data)) != want.Size || got != want.SHA256 {
 		return nil, fmt.Errorf("%s doesn't match the signed Release file: got %d bytes with SHA-256 %s, want %d bytes with SHA-256 %s", name, len(data), got, want.Size, want.SHA256)
+	}
+	if rd.Cache != nil {
+		// A cache that can't be written only costs a download next time.
+		_ = rd.Cache.Add(bytes.NewReader(data), want.SHA256)
 	}
 	return data, nil
 }

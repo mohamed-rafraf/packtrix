@@ -56,7 +56,7 @@ func TestLiveRead(t *testing.T) {
 				t.Fatal(err)
 			}
 			src := Source{Name: r.Name, URL: r.URLFor("amd64"), Suite: r.Suite, Components: []string{"main"}, Keyring: keyring}
-			repo, err := Read(t.Context(), client, src, "amd64")
+			repo, err := (&Reader{Client: client}).Read(t.Context(), src, "amd64")
 			if err != nil {
 				t.Fatal(err)
 			}

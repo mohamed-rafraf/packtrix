@@ -36,6 +36,7 @@ The code is organized as follows:
 | `internal/fetch/` | HTTP downloads through proxies and private CAs, with credentials, retries and resuming |
 | `internal/pgp/` | OpenPGP: verifying upstream signatures against pinned keys, signing the published repositories |
 | `internal/plan/` | `packtrix plan`: reads the repositories and resolves each target and architecture |
+| `internal/pool/` | Files stored by SHA-256, checked before they get in: the package pool and the index cache |
 | `internal/repo/apt/` | Reading upstream APT repositories, verified against their keys and hashes. `apttest/` serves signed test archives. |
 | `internal/resolve/` | The dependency closure, which doesn't know APT or RPM |
 | `internal/resolve/apt/` | The APT dependency model: which packages satisfy a dependency |
