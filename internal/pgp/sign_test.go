@@ -150,7 +150,11 @@ func TestSignAndVerify(t *testing.T) {
 				t.Errorf("VerifyDetached of changed data = %v, want a bad signature", err)
 			}
 
-			gpgv(t, dearmor(t, public), inRelease, sig)
+			keyring, err := s.PublicKeyring()
+			if err != nil || !bytes.Equal(keyring, dearmor(t, public)) {
+				t.Errorf("PublicKeyring isn't the armored key's content: %v", err)
+			}
+			gpgv(t, keyring, inRelease, sig)
 		})
 	}
 }

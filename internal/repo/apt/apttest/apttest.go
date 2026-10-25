@@ -36,6 +36,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
@@ -46,10 +47,14 @@ import (
 )
 
 // Key generates a signing key, like an archive's, and returns a signer and
-// a keyring that pins it.
+// a keyring that pins it. The key is made an hour ago: a clock that steps
+// back a little, as virtual machines' clocks do, would otherwise make it
+// look made in the future, and not valid yet.
 func Key(t testing.TB) (*pgp.Signer, *pgp.Keyring) {
 	t.Helper()
-	e, err := openpgp.NewEntity("Test Archive Automatic Signing Key", "", "archive@example.org", &packet.Config{Algorithm: packet.PubKeyAlgoEdDSA})
+	created := time.Now().Add(-time.Hour)
+	e, err := openpgp.NewEntity("Test Archive Automatic Signing Key", "", "archive@example.org",
+		&packet.Config{Algorithm: packet.PubKeyAlgoEdDSA, Time: func() time.Time { return created }})
 	if err != nil {
 		t.Fatal(err)
 	}

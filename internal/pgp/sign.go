@@ -108,11 +108,21 @@ func (s *Signer) Fingerprint() string {
 
 // PublicKey returns the armored public key, for the machines to install.
 func (s *Signer) PublicKey() ([]byte, error) {
+	keyring, err := s.PublicKeyring()
+	if err != nil {
+		return nil, err
+	}
+	return armored(openpgp.PublicKeyType, keyring)
+}
+
+// PublicKeyring returns the public key in binary form, which apt's
+// Signed-By and gpgv's keyrings take everywhere.
+func (s *Signer) PublicKeyring() ([]byte, error) {
 	var buf bytes.Buffer
 	if err := s.entity.Serialize(&buf); err != nil {
 		return nil, err
 	}
-	return armored(openpgp.PublicKeyType, buf.Bytes())
+	return buf.Bytes(), nil
 }
 
 // Clearsign returns text signed as a clearsigned message, such as an

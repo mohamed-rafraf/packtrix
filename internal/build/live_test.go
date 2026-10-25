@@ -89,27 +89,29 @@ func TestLiveAPTGet(t *testing.T) {
 	if err != nil {
 		t.Skip("apt-get isn't installed")
 	}
-	server := httptest.NewServer(http.FileServer(http.Dir(targets[0].Dir)))
+	server := httptest.NewServer(http.FileServer(http.Dir(dir)))
 	defer server.Close()
 
 	// apt's state lives in a temporary directory, and trusts only the
-	// published key.
-	state := t.TempDir()
-	public, err := signer.PublicKey()
-	if err != nil {
+	// published key. It uses the generated source entry, with the key where
+	// the test can put it.
+	if err := Clients(dir, targets, signer, server.URL); err != nil {
 		t.Fatal(err)
 	}
+	state := t.TempDir()
 	for _, d := range []string{"sources.list.d", "trusted.gpg.d", "lists/partial", "archives/partial", "download"} {
 		if err := os.MkdirAll(filepath.Join(state, d), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
-	key := filepath.Join(state, "packtrix.asc")
-	sources := "Types: deb\nURIs: " + server.URL + "/\nSuites: noble\nComponents: main\nSigned-By: " + key + "\n"
-	for name, data := range map[string][]byte{"packtrix.asc": public, "sources.list.d/packtrix.sources": []byte(sources)} {
-		if err := os.WriteFile(filepath.Join(state, name), data, 0o644); err != nil {
-			t.Fatal(err)
-		}
+	key := filepath.Join(dir, "keys", KeyName+".gpg")
+	sources, err := os.ReadFile(filepath.Join(dir, "clients", "ubuntu-24.04.sources"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources = []byte(strings.Replace(string(sources), "Signed-By: "+keyPath, "Signed-By: "+key, 1))
+	if err := os.WriteFile(filepath.Join(state, "sources.list.d", "packtrix.sources"), sources, 0o644); err != nil {
+		t.Fatal(err)
 	}
 	apt := func(args ...string) string {
 		t.Helper()
