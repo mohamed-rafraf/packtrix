@@ -157,6 +157,7 @@ internal/cli/                   commands (cobra)
 internal/version/               build information
 internal/deb/                   Debian versions and how they sort, dependency fields, Packages indexes, version constraints
 internal/expand/                manifest + catalog → each target's repositories and packages
+internal/fetch/                 HTTP downloads: proxies, private CAs, credentials, retries, resuming
 internal/pgp/                   signature verification against pinned keys, signing
 internal/resolve/               dependency closure, independent of the package format
 internal/resolve/apt/           APT dependency model
@@ -175,7 +176,7 @@ Planned:
 ```
 internal/catalog/      vendor repositories, auto-detection
 internal/resolve/      RPM dependency model, baselines
-internal/fetch/        download, verification, content-addressed pool
+internal/pool/         content-addressed package pool, metadata cache
 internal/repo/apt/     APT metadata subsetting and signing
 internal/repo/rpm/     RPM metadata subsetting and signing
 internal/lock/         lockfile read, write, diff
