@@ -354,3 +354,71 @@ func TestReadCache(t *testing.T) {
 	read(2)
 	read(1)
 }
+
+func TestParagraphs(t *testing.T) {
+	signer, keyring := apttest.Key(t)
+	a := apttest.New(t, signer, false)
+	publish := func(names ...string) {
+		a.Publish(apttest.Suite{
+			Dir: "ubuntu/dists/noble", Fields: nobleFields, ByHash: true, Compressions: []string{".xz"},
+			Indexes: map[string]string{"main/binary-amd64/Packages": packages(names...)},
+		})
+	}
+	publish("curl", "jq")
+	cache, err := pool.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := fetch.New(fetch.Options{Retries: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := Source{Name: "test", URL: a.URL() + "/ubuntu/", Suite: "noble", Components: []string{"main"}, Keyring: keyring}
+	cached := &Reader{Client: client, Cache: cache}
+	r, err := cached.Read(t.Context(), src, "amd64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := r.Digest
+	want := map[Key]bool{{Name: "curl", Version: "1.0", Architecture: "amd64"}: true}
+	curl := strings.SplitAfter(packages("curl"), "\n\n")[0]
+	curl = strings.TrimSuffix(curl, "\n")
+
+	paragraphs := func(rd *Reader) (map[Key]string, error) {
+		t.Helper()
+		a.ResetRequests()
+		found, rel, err := rd.Paragraphs(t.Context(), src, "amd64", digest, want)
+		if err == nil && rel.Codename != "noble" {
+			t.Errorf("Release = %+v", rel)
+		}
+		return found, err
+	}
+	check := func(found map[Key]string, err error, requests int) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(found) != 1 || found[Key{"curl", "1.0", "amd64"}] != curl {
+			t.Errorf("paragraphs = %q, want %q", found, curl)
+		}
+		if got := a.Requests(); len(got) != requests {
+			t.Errorf("requests = %q, want %d", got, requests)
+		}
+	}
+
+	// From the cache, the repository isn't asked anything.
+	found, err := paragraphs(cached)
+	check(found, err, 0)
+	// Without a cache, it is read again, and must still be the same.
+	found, err = paragraphs(&Reader{Client: client})
+	check(found, err, 2)
+
+	// Upstream moves on: the cache still has it as plan saw it.
+	publish("curl", "jq", "wget")
+	found, err = paragraphs(cached)
+	check(found, err, 0)
+	_, err = paragraphs(&Reader{Client: client})
+	if err == nil || !strings.HasSuffix(err.Error(), "the repository changed since the lock was planned, and the cache doesn't hold it as it was; run packtrix plan") {
+		t.Errorf("error = %v", err)
+	}
+}

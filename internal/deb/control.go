@@ -31,6 +31,13 @@ const maxLine = 16 << 20
 // Packages index.
 type Paragraph struct {
 	fields map[string]string
+	raw    string
+}
+
+// Raw returns the paragraph's lines as the file has them, each ending with
+// a newline, without comments. Only ReadRawParagraphs keeps them.
+func (p Paragraph) Raw() string {
+	return p.raw
 }
 
 // Get returns the value of a field, or "" when the paragraph doesn't have it.
@@ -43,19 +50,32 @@ func (p Paragraph) Get(name string) string {
 // ReadParagraphs calls fn with each paragraph of a deb822 file, in order. It
 // stops at the first error, from the file or from fn.
 func ReadParagraphs(r io.Reader, fn func(Paragraph) error) error {
+	return readParagraphs(r, false, fn)
+}
+
+// ReadRawParagraphs is ReadParagraphs, but also keeps the text of each
+// paragraph, for copying it.
+func ReadRawParagraphs(r io.Reader, fn func(Paragraph) error) error {
+	return readParagraphs(r, true, fn)
+}
+
+func readParagraphs(r io.Reader, keepRaw bool, fn func(Paragraph) error) error {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(nil, maxLine)
 	var (
 		p    Paragraph
 		last string
 		line int
+		raw  strings.Builder
 	)
 	flush := func() error {
 		if p.fields == nil {
 			return nil
 		}
+		p.raw = raw.String()
 		err := fn(p)
 		p, last = Paragraph{}, ""
+		raw.Reset()
 		return err
 	}
 	for sc.Scan() {
@@ -72,6 +92,10 @@ func ReadParagraphs(r io.Reader, fn func(Paragraph) error) error {
 				return fmt.Errorf("line %d: continuation line outside a field", line)
 			}
 			p.fields[last] += "\n" + text[1:]
+			if keepRaw {
+				raw.WriteString(text)
+				raw.WriteByte('\n')
+			}
 		default:
 			name, value, ok := strings.Cut(text, ":")
 			if !ok || name == "" || strings.ContainsAny(name, " \t") {
@@ -85,6 +109,10 @@ func ReadParagraphs(r io.Reader, fn func(Paragraph) error) error {
 				return fmt.Errorf("line %d: field %s appears twice in the paragraph", line, name)
 			}
 			p.fields[last] = strings.TrimSpace(value)
+			if keepRaw {
+				raw.WriteString(text)
+				raw.WriteByte('\n')
+			}
 		}
 	}
 	if err := sc.Err(); err != nil {

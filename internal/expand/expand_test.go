@@ -93,7 +93,7 @@ func TestDistroTarget(t *testing.T) {
   packages: [curl]
 `)
 	target := res.Targets[0]
-	if target.Name != "ubuntu-24.04" || target.Format != "apt" || target.Distro != "ubuntu-24.04" || *target.Baseline != (catalog.Baseline{Repository: "release", Component: "main"}) {
+	if target.Name != "ubuntu-24.04" || target.Format != "apt" || target.Distro != "ubuntu-24.04" || target.Codename != "noble" || *target.Baseline != (catalog.Baseline{Repository: "release", Component: "main"}) {
 		t.Errorf("target = %+v", target)
 	}
 	want := map[string][]string{

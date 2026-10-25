@@ -45,6 +45,8 @@ type Release struct {
 	// lists the packages of architecture "all"
 	// (No-Support-for-Architecture-all: Packages).
 	AllInArchIndexes bool
+	// Date is when the Release was made, or zero.
+	Date time.Time
 	// ValidUntil is when the Release expires, or zero.
 	ValidUntil time.Time
 	// Files are the files the Release vouches for, by path relative to its
@@ -85,6 +87,14 @@ func ParseRelease(text []byte) (*Release, error) {
 		AcquireByHash:    p.Get("Acquire-By-Hash") == "yes",
 		AllInArchIndexes: p.Get("No-Support-for-Architecture-all") == "Packages",
 		Files:            map[string]File{},
+	}
+	// apt only warns about a Date it can't read; so does Packtrix, by
+	// leaving it out.
+	for _, layout := range []string{time.RFC1123, time.RFC1123Z} {
+		if t, err := time.Parse(layout, p.Get("Date")); err == nil {
+			r.Date = t
+			break
+		}
 	}
 	if s := p.Get("Valid-Until"); s != "" {
 		t, err := time.Parse(time.RFC1123, s)

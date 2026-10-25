@@ -25,6 +25,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -125,13 +126,41 @@ func flat(suite string) bool {
 	return strings.HasSuffix(suite, "/")
 }
 
-func (r *Repository) read(ctx context.Context, rd *Reader, repo Source, arch string) error {
-	auth := repo.Auth
-	dir := strings.TrimSuffix(repo.URL, "/") + "/dists/" + repo.Suite + "/"
-	if flat(repo.Suite) {
-		dir = strings.TrimSuffix(repo.URL, "/") + "/" + strings.TrimPrefix(strings.TrimPrefix(repo.Suite, "."), "/")
+// releaseDir returns the URL of the directory of a repository's Release.
+func releaseDir(src Source) string {
+	if flat(src.Suite) {
+		return strings.TrimSuffix(src.URL, "/") + "/" + strings.TrimPrefix(strings.TrimPrefix(src.Suite, "."), "/")
 	}
+	return strings.TrimSuffix(src.URL, "/") + "/dists/" + src.Suite + "/"
+}
 
+// indexRef is a Packages index to read, without its compression.
+type indexRef struct {
+	component, arch, path string
+}
+
+// indexes returns the Packages indexes of a repository for an architecture:
+// each component's, plus binary-all where the architecture's indexes don't
+// include its packages.
+func indexes(rel *Release, src Source, arch string) []indexRef {
+	if flat(src.Suite) {
+		return []indexRef{{path: "Packages"}}
+	}
+	var out []indexRef
+	for _, component := range src.Components {
+		archs := []string{arch}
+		if !rel.AllInArchIndexes && listed(rel, component+"/binary-all/Packages") {
+			archs = append(archs, "all")
+		}
+		for _, a := range archs {
+			out = append(out, indexRef{component: component, arch: a, path: component + "/binary-" + a + "/Packages"})
+		}
+	}
+	return out
+}
+
+func (r *Repository) read(ctx context.Context, rd *Reader, repo Source, arch string) error {
+	dir := releaseDir(repo)
 	text, err := r.readRelease(ctx, rd.Client, repo, dir)
 	if err != nil {
 		return err
@@ -148,29 +177,90 @@ func (r *Repository) read(ctx context.Context, rd *Reader, repo Source, arch str
 	if !rel.ValidUntil.IsZero() && now().After(rel.ValidUntil) {
 		return fmt.Errorf("the Release file expired on %s: the server, or a mirror on the way, serves outdated metadata", rel.ValidUntil.Format(time.RFC1123))
 	}
-
-	if flat(repo.Suite) {
-		packages, err := r.readIndex(ctx, rd, auth, dir, "Packages")
-		if err != nil {
-			return err
-		}
-		r.Indexes = append(r.Indexes, Index{Packages: packages})
-		return nil
+	if rd.Cache != nil {
+		// Building the published repository reads it again, by its digest.
+		_ = rd.Cache.Add(bytes.NewReader(text), hex.EncodeToString(sum[:]))
 	}
-	for _, component := range repo.Components {
-		archs := []string{arch}
-		if !rel.AllInArchIndexes && listed(rel, component+"/binary-all/Packages") {
-			archs = append(archs, "all")
-		}
-		for _, a := range archs {
-			packages, err := r.readIndex(ctx, rd, auth, dir, component+"/binary-"+a+"/Packages")
+
+	for _, ix := range indexes(rel, repo, arch) {
+		var packages []*deb.Package
+		err := r.eachParagraph(ctx, rd, repo.Auth, dir, ix.path, false, func(p deb.Paragraph) error {
+			pkg, err := deb.ParsePackage(p)
 			if err != nil {
 				return err
 			}
-			r.Indexes = append(r.Indexes, Index{Component: component, Architecture: a, Packages: packages})
+			packages = append(packages, pkg)
+			return nil
+		})
+		if err != nil {
+			return err
 		}
+		r.Indexes = append(r.Indexes, Index{Component: ix.component, Architecture: ix.arch, Packages: packages})
 	}
 	return nil
+}
+
+// Key identifies a package of an index.
+type Key struct {
+	Name, Version, Architecture string
+}
+
+// Paragraphs returns the text of the wanted packages' paragraphs, as the
+// repository had them when its Release file had this digest,
+// "sha256:<hex>". The Release and its indexes normally come from the cache,
+// where plan left them. Without them, Paragraphs fetches the repository
+// again, which works as long as it hasn't changed since. It also returns
+// the Release.
+func (rd *Reader) Paragraphs(ctx context.Context, src Source, arch, digest string, want map[Key]bool) (map[Key]string, *Release, error) {
+	r := &Repository{Name: src.Name, URL: src.URL, Suite: src.Suite}
+	found, err := r.paragraphs(ctx, rd, src, arch, digest, want)
+	if err != nil {
+		return nil, nil, fmt.Errorf("repository %s (%s %s): %w", src.Name, src.URL, src.Suite, err)
+	}
+	return found, r.Release, nil
+}
+
+func (r *Repository) paragraphs(ctx context.Context, rd *Reader, src Source, arch, digest string, want map[Key]bool) (map[Key]string, error) {
+	dir := releaseDir(src)
+	sum := strings.TrimPrefix(digest, "sha256:")
+	var text []byte
+	if rd.Cache != nil {
+		if data, ok, err := rd.Cache.Read(sum); err == nil && ok {
+			text = data
+		}
+	}
+	if text == nil {
+		t, err := r.readRelease(ctx, rd.Client, src, dir)
+		if err != nil {
+			return nil, err
+		}
+		if got := sha256.Sum256(t); hex.EncodeToString(got[:]) != sum {
+			return nil, errors.New("the repository changed since the lock was planned, and the cache doesn't hold it as it was; run packtrix plan")
+		}
+		text = t
+	}
+	var err error
+	if r.Release, err = ParseRelease(text); err != nil {
+		return nil, err
+	}
+
+	found := map[Key]string{}
+	for _, ix := range indexes(r.Release, src, arch) {
+		err := r.eachParagraph(ctx, rd, src.Auth, dir, ix.path, true, func(p deb.Paragraph) error {
+			v, err := deb.ParseVersion(p.Get("Version"))
+			if err != nil {
+				return fmt.Errorf("package %s: %w", p.Get("Package"), err)
+			}
+			if k := (Key{p.Get("Package"), v.String(), p.Get("Architecture")}); want[k] {
+				found[k] = p.Raw()
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return found, nil
 }
 
 // readRelease fetches and verifies the Release file. It only falls back to
@@ -216,9 +306,10 @@ func listed(rel *Release, index string) bool {
 	return false
 }
 
-// readIndex fetches a Packages index, checks it against the Release, and
-// reads its packages.
-func (r *Repository) readIndex(ctx context.Context, rd *Reader, auth *fetch.Auth, dir, index string) ([]*deb.Package, error) {
+// eachParagraph fetches a Packages index, checks it against the Release,
+// and calls fn with each of its paragraphs, with their text when raw is
+// set.
+func (r *Repository) eachParagraph(ctx context.Context, rd *Reader, auth *fetch.Auth, dir, index string, raw bool, fn func(deb.Paragraph) error) error {
 	for _, ext := range compressions {
 		file, ok := r.Release.Files[index+ext]
 		if !ok {
@@ -227,15 +318,22 @@ func (r *Repository) readIndex(ctx context.Context, rd *Reader, auth *fetch.Auth
 		name := index + ext
 		data, err := r.fetchFile(ctx, rd, auth, dir, name, file)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		packages, err := parseIndex(data, ext)
+		text, err := decompress(data, ext)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", name, err)
+			return fmt.Errorf("%s: %w", name, err)
 		}
-		return packages, nil
+		read := deb.ReadParagraphs
+		if raw {
+			read = deb.ReadRawParagraphs
+		}
+		if err := read(text, fn); err != nil {
+			return fmt.Errorf("%s: %w", name, err)
+		}
+		return nil
 	}
-	return nil, fmt.Errorf("the Release file lists no %s index", index)
+	return fmt.Errorf("the Release file lists no %s index", index)
 }
 
 // fetchFile fetches a file that the Release lists, by hash when the
@@ -272,32 +370,17 @@ func (r *Repository) fetchFile(ctx context.Context, rd *Reader, auth *fetch.Auth
 	return data, nil
 }
 
-func parseIndex(data []byte, ext string) ([]*deb.Package, error) {
-	var r io.Reader = bytes.NewReader(data)
+// decompress returns the text of an index compressed as ext says.
+func decompress(data []byte, ext string) (io.Reader, error) {
+	r := bytes.NewReader(data)
 	switch ext {
 	case ".xz":
-		xr, err := xz.NewReader(r)
-		if err != nil {
-			return nil, err
-		}
-		r = xr
+		return xz.NewReader(r)
 	case ".gz":
-		gr, err := gzip.NewReader(r)
-		if err != nil {
-			return nil, err
-		}
-		r = gr
+		return gzip.NewReader(r)
+	default:
+		return r, nil
 	}
-	var packages []*deb.Package
-	err := deb.ReadParagraphs(r, func(p deb.Paragraph) error {
-		pkg, err := deb.ParsePackage(p)
-		if err != nil {
-			return err
-		}
-		packages = append(packages, pkg)
-		return nil
-	})
-	return packages, err
 }
 
 // CheckSameRelease returns an error when repositories disagree on the

@@ -46,8 +46,10 @@ type Result struct {
 type Target struct {
 	Name   string            `json:"name"`
 	Format packtrix.RepoType `json:"format"`
-	// Distro is the catalog entry of a built-in distro.
-	Distro string `json:"distro,omitempty"`
+	// Distro is the catalog entry of a built-in distro, and Codename its
+	// release's codename, such as "noble".
+	Distro   string `json:"distro,omitempty"`
+	Codename string `json:"codename,omitempty"`
 	// Baseline is where minimal baselines come from, for a built-in distro.
 	Baseline      *catalog.Baseline `json:"baseline,omitempty"`
 	Architectures []Architecture    `json:"architectures"`
@@ -147,7 +149,7 @@ func (e *expander) target(field string, t packtrix.Target) (Target, bool) {
 			e.add(field+".distro.name", "%v", err)
 			return out, false
 		}
-		out.Format, out.Distro, out.Baseline = d.Format, d.Name, &d.Baseline
+		out.Format, out.Distro, out.Codename, out.Baseline = d.Format, d.Name, d.Release.Codename, &d.Baseline
 	} else {
 		out.Format = t.Repos[0].Type
 	}

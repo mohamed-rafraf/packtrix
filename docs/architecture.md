@@ -104,7 +104,8 @@ Containers are used for these checks only. Producing repositories never needs th
 
 Packtrix publishes a **subset** of upstream repositories. Instead of regenerating metadata by reading every package file, it copies the matching entries from the upstream metadata:
 
-- **APT:** the stanzas for the selected packages are copied from upstream `Packages` files, and Packtrix writes a new `Release`/`InRelease` file with its own signature.
+- **APT:** the stanzas for the selected packages are copied verbatim from upstream `Packages` files; only `Filename` changes, to `pool/<repository>/…`, so two upstream repositories can't collide. Packtrix writes `Packages`, `Packages.gz` and `Packages.xz` with their `by-hash` copies, and a `Release` with `Acquire-By-Hash: yes`, SHA-256 sums and no `Valid-Until`, signed as `InRelease` and `Release.gpg`. Its `Date` is the newest of the upstream `Release` files, so the same lock always gives the same metadata, apart from the signatures. Package files are hard-linked from the pool, or copied across file systems.
+- The stanzas come from the upstream indexes as `plan` saw them: `plan` caches each verified `Release` under the digest the lock records, and its indexes under their SHA-256. Without the cache, Packtrix fetches the `Release` again, and refuses it if it changed since: "run packtrix plan".
 - **RPM:** the entries for the selected packages are copied from upstream `primary`, `filelists` and `other` metadata (plus `updateinfo` and `modules` where present), and Packtrix writes a new `repomd.xml`.
 
 This keeps upstream fields intact, is deterministic, and doesn't depend on `apt-ftparchive` or `createrepo_c` being installed. `createrepo_c` is only needed for packages that don't come from an upstream repository (a planned feature).
@@ -155,6 +156,7 @@ Implemented:
 ```
 cmd/packtrix/                   binary entry point
 internal/catalog/               built-in distros: repositories, components, keys pinned by fingerprint
+internal/build/                 the published repositories: one signed repository per target, from the lock and the pool
 internal/cli/                   commands (cobra)
 internal/version/               build information
 internal/deb/                   Debian versions and how they sort, dependency fields, Packages indexes, version constraints
@@ -165,7 +167,7 @@ internal/pgp/                   signature verification against pinned keys, sign
 internal/plan/                  plan: read the repositories, resolve each target, what to download and why
 internal/pool/                  files stored by SHA-256: the package pool, the index cache
 internal/resolve/               dependency closure, independent of the package format
-internal/repo/apt/              reading upstream APT repositories: InRelease and Packages, verified
+internal/repo/apt/              reading upstream APT repositories, verified; writing the published ones
 internal/repo/apt/apttest/      signed APT archives served over HTTP(S), for tests
 internal/resolve/apt/           APT dependency model
 internal/secret/                secret references: env:NAME, file:/path
@@ -183,7 +185,6 @@ Planned:
 ```
 internal/catalog/      vendor repositories, auto-detection
 internal/resolve/      RPM dependency model, baselines
-internal/repo/apt/     APT metadata subsetting and signing
 internal/repo/rpm/     RPM metadata subsetting and signing
 internal/lock/         lockfile diff
 internal/publish/      snapshots, atomic switch, garbage collection
