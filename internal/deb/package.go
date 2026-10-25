@@ -19,7 +19,11 @@ package deb
 import (
 	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
 )
+
+var sha256RE = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // Package is a binary package of a Packages index, with the fields that
 // dependency resolution needs.
@@ -38,6 +42,12 @@ type Package struct {
 	Recommends []Alternatives
 	Breaks     []Alternatives
 	Conflicts  []Alternatives
+	// Filename is the path of the .deb, relative to the repository's base
+	// URL, such as "pool/main/c/curl/curl_8.5.0-2ubuntu10.6_amd64.deb".
+	Filename string
+	// Size and SHA256 describe the .deb.
+	Size   int64
+	SHA256 string
 }
 
 // String returns name=version, as apt-get install accepts it.
@@ -52,6 +62,8 @@ func ParsePackage(p Paragraph) (*Package, error) {
 		Architecture: p.Get("Architecture"),
 		Essential:    p.Get("Essential") == "yes",
 		Priority:     p.Get("Priority"),
+		Filename:     p.Get("Filename"),
+		SHA256:       p.Get("SHA256"),
 	}
 	if pkg.Name == "" {
 		return nil, errors.New("paragraph without a Package field")
@@ -68,6 +80,14 @@ func ParsePackage(p Paragraph) (*Package, error) {
 	var err error
 	if pkg.Version, err = ParseVersion(p.Get("Version")); err != nil {
 		return fail("Version", err)
+	}
+	if s := p.Get("Size"); s != "" {
+		if pkg.Size, err = strconv.ParseInt(s, 10, 64); err != nil || pkg.Size < 0 {
+			return fail("Size", fmt.Errorf("invalid size %q", s))
+		}
+	}
+	if pkg.SHA256 != "" && !sha256RE.MatchString(pkg.SHA256) {
+		return fail("SHA256", fmt.Errorf("invalid SHA-256 %q", pkg.SHA256))
 	}
 	if pkg.Provides, err = ParseProvides(p.Get("Provides")); err != nil {
 		return fail("Provides", err)

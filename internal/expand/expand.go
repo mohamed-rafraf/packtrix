@@ -69,8 +69,11 @@ type Repository struct {
 	Suite      string   `json:"suite,omitempty"`
 	Components []string `json:"components,omitempty"`
 	// Keys are the fingerprints of the keys that may sign the repository.
-	Keys []string       `json:"keys"`
-	Auth *packtrix.Auth `json:"-"`
+	Keys []string `json:"keys"`
+	// Extra is set for the repositories of extraRepos, which may come from
+	// other vendors than the distro.
+	Extra bool           `json:"extra,omitempty"`
+	Auth  *packtrix.Auth `json:"-"`
 
 	keyring *pgp.Keyring
 }
@@ -151,6 +154,9 @@ func (e *expander) target(field string, t packtrix.Target) (Target, bool) {
 
 	components := e.components(field+".distro.components", t, d)
 	extra := e.manifestRepositories(field+".extraRepos", t.ExtraRepos, out.Format)
+	for i := range extra {
+		extra[i].Extra = true
+	}
 	repos := e.manifestRepositories(field+".repos", t.Repos, out.Format)
 	for j, arch := range t.Architectures {
 		if d != nil && !slices.Contains(d.Architectures, arch) {

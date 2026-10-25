@@ -160,6 +160,7 @@ internal/expand/                manifest + catalog → each target's repositorie
 internal/fetch/                 HTTP downloads: proxies, private CAs, credentials, retries, resuming
 internal/pgp/                   signature verification against pinned keys, signing
 internal/resolve/               dependency closure, independent of the package format
+internal/repo/apt/              reading upstream APT repositories: InRelease and Packages, verified
 internal/resolve/apt/           APT dependency model
 internal/secret/                secret references: env:NAME, file:/path
 pkg/apis/packtrix/              internal manifest API, used by the rest of Packtrix
