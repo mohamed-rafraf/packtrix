@@ -116,22 +116,24 @@ For each target, the distro packages and the vendor packages are merged into **o
 
 ```
 /srv/repos/
-├── current -> snapshots/2026-10-22T0200Z
+├── current -> snapshots/2026-10-22T020000Z
 ├── snapshots/
-│   ├── 2026-10-15T0200Z/
-│   └── 2026-10-22T0200Z/
-│       ├── apt/ubuntu/dists/noble/…  apt/ubuntu/pool/…
-│       ├── rpm/rocky/9/x86_64/repodata/…  …/Packages/…
+│   ├── 2026-10-15T020000Z/
+│   └── 2026-10-22T020000Z/
+│       ├── apt/ubuntu-24.04/dists/noble/…  apt/ubuntu-24.04/pool/…
+│       ├── rpm/rocky-9/repodata/…  …/Packages/…
 │       ├── keys/
 │       ├── clients/
 │       └── packtrix.lock
 └── pool/sha256/…
 ```
 
-- A snapshot is fully built and validated before anything points at it.
-- `current` switches with a single atomic rename, so clients never see a mix of old and new.
-- APT repositories set `Acquire-By-Hash: yes`, and earlier metadata files stay reachable for a grace period. A client that fetched the old `InRelease` just before the switch can still download the matching `Packages` file.
-- Garbage collection removes pool files that no kept snapshot references.
+- A snapshot is fully built in a hidden directory before anything points at it. A `sync` that fails or is interrupted leaves `current` and the published snapshots as they were.
+- `current` switches with a single atomic rename of a symlink, so clients never see a mix of old and new.
+- Package files in snapshots are hard links into the pool, so a snapshot costs only its metadata. `publish.keepSnapshots` earlier snapshots are kept next to the current one.
+- A lock file stops two `sync` runs from writing the same publish path at once.
+- *(Planned)* APT repositories set `Acquire-By-Hash: yes`, and earlier metadata files stay reachable for a grace period. A client that fetched the old `InRelease` just before the switch can still download the matching `Packages` file.
+- *(Planned)* Garbage collection removes pool files that no kept snapshot references.
 
 ## Validation
 
@@ -165,6 +167,7 @@ internal/expand/                manifest + catalog → each target's repositorie
 internal/fetch/                 HTTP downloads: proxies, private CAs, credentials, retries, resuming
 internal/pgp/                   signature verification against pinned keys, signing
 internal/plan/                  plan: read the repositories, resolve each target, what to download and why
+internal/publish/               sync: download, build a snapshot, switch current to it
 internal/pool/                  files stored by SHA-256: the package pool, the index cache
 internal/resolve/               dependency closure, independent of the package format
 internal/repo/apt/              reading upstream APT repositories, verified; writing the published ones
@@ -187,7 +190,7 @@ internal/catalog/      vendor repositories, auto-detection
 internal/resolve/      RPM dependency model, baselines
 internal/repo/rpm/     RPM metadata subsetting and signing
 internal/lock/         lockfile diff
-internal/publish/      snapshots, atomic switch, garbage collection
+internal/publish/      garbage collection of the pool, rollback
 internal/bundle/       export and import
 internal/validate/     optional install tests against candidate snapshots, in containers
 ```

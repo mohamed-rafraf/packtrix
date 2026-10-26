@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"slices"
@@ -46,11 +47,11 @@ import (
 	"github.com/packtrix/packtrix/internal/pgp"
 )
 
-// Key generates a signing key, like an archive's, and returns a signer and
-// a keyring that pins it. The key is made an hour ago: a clock that steps
-// back a little, as virtual machines' clocks do, would otherwise make it
-// look made in the future, and not valid yet.
-func Key(t testing.TB) (*pgp.Signer, *pgp.Keyring) {
+// PrivateKey generates a signing key and returns it armored, as
+// publish.signing.key references it. The key is made an hour ago: a clock
+// that steps back a little, as virtual machines' clocks do, would otherwise
+// make it look made in the future, and not valid yet.
+func PrivateKey(t testing.TB) []byte {
 	t.Helper()
 	created := time.Now().Add(-time.Hour)
 	e, err := openpgp.NewEntity("Test Archive Automatic Signing Key", "", "archive@example.org",
@@ -69,7 +70,14 @@ func Key(t testing.TB) (*pgp.Signer, *pgp.Keyring) {
 	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}
-	s, err := pgp.LoadSigner(buf.Bytes())
+	return buf.Bytes()
+}
+
+// Key generates a signing key, like an archive's, and returns a signer and
+// a keyring that pins it.
+func Key(t testing.TB) (*pgp.Signer, *pgp.Keyring) {
+	t.Helper()
+	s, err := pgp.LoadSigner(PrivateKey(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,6 +90,69 @@ func Key(t testing.TB) (*pgp.Signer, *pgp.Keyring) {
 		t.Fatal(err)
 	}
 	return s, k
+}
+
+// APT is the apt-get of the machine running the tests, with its own state
+// in a temporary directory, and only one source entry, as a machine that
+// uses a Packtrix repository has.
+type APT struct {
+	t     testing.TB
+	bin   string
+	state string
+}
+
+// NewAPT returns the machine's apt-get with this source entry, or skips the
+// test when apt-get isn't installed.
+func NewAPT(t testing.TB, sources string) *APT {
+	t.Helper()
+	bin, err := exec.LookPath("apt-get")
+	if err != nil {
+		t.Skip("apt-get isn't installed")
+	}
+	a := &APT{t: t, bin: bin, state: t.TempDir()}
+	for _, d := range []string{"sources.list.d", "trusted.gpg.d", "lists/partial", "archives/partial", "download"} {
+		if err := os.MkdirAll(filepath.Join(a.state, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(a.state, "sources.list.d", "packtrix.sources"), []byte(sources), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return a
+}
+
+// Run runs apt-get with these arguments, in the directory that apt-get
+// download writes to, and returns its output. Warnings and errors fail the
+// test.
+func (a *APT) Run(args ...string) string {
+	a.t.Helper()
+	options := []string{
+		"-o", "Dir::Etc::SourceList=/dev/null",
+		"-o", "Dir::Etc::SourceParts=" + filepath.Join(a.state, "sources.list.d"),
+		"-o", "Dir::Etc::Trusted=/dev/null",
+		"-o", "Dir::Etc::TrustedParts=" + filepath.Join(a.state, "trusted.gpg.d"),
+		"-o", "Dir::State::Lists=" + filepath.Join(a.state, "lists"),
+		"-o", "Dir::Cache=" + a.state,
+		"-o", "Dir::Cache::Archives=" + filepath.Join(a.state, "archives"),
+		"-o", "Debug::NoLocking=1",
+	}
+	cmd := exec.CommandContext(a.t.Context(), a.bin, append(options, args...)...)
+	cmd.Dir = a.DownloadDir()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		a.t.Fatalf("apt-get %s: %v\n%s", strings.Join(args, " "), err, out)
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.HasPrefix(line, "W:") || strings.HasPrefix(line, "E:") || strings.HasPrefix(line, "N:") {
+			a.t.Errorf("apt-get %s: %s", strings.Join(args, " "), line)
+		}
+	}
+	return string(out)
+}
+
+// DownloadDir returns where apt-get download writes.
+func (a *APT) DownloadDir() string {
+	return filepath.Join(a.state, "download")
 }
 
 // Archive is an APT archive on disk, served over HTTP or HTTPS. It records

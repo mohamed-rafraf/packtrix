@@ -27,7 +27,7 @@ Packtrix runs in two places:
 | `packtrix validate` | both | Check the manifest without network access |
 | `packtrix render` | connected | Print the fully expanded manifest: every built-in name replaced by its URLs, components and key fingerprints |
 | `packtrix plan` | connected | Resolve dependencies, write `packtrix.lock`, and print what changes and how much will be downloaded. `-o json` for scripts, `--ca-file` for a private certificate authority, `--lock` to write the lock elsewhere, `--cache-dir` for the cache of upstream indexes. Nothing is written unless every target is planned. |
-| `packtrix sync` | connected | Carry out the lockfile: download, verify, build a snapshot, publish it. With `--verify-install`, first test-install it in containers. |
+| `packtrix sync` | connected | Carry out the lockfile: download, verify, build a snapshot, publish it. `--base-url` is where the published directory is served, for the client files. With `--verify-install`, first test-install it in containers. |
 | `packtrix check` | connected | A cheap check of whether any upstream repository changed. Exit code `0` = no change, `2` = changes, `1` = error. |
 | `packtrix export` | connected | Write a bundle: full, or `--since <old lockfile>` for a delta |
 | `packtrix import` | offline | Verify a bundle and add it as a new snapshot |
@@ -43,7 +43,7 @@ Packtrix runs in two places:
 $ packtrix init --target ubuntu-24.04 --target rocky-9 > packtrix.yaml
 $ vi packtrix.yaml                     # list the packages
 $ packtrix plan                        # resolve; review what will be downloaded
-$ packtrix sync                        # download, verify, build signed repositories
+$ packtrix sync --base-url http://repo.internal   # download, verify, build signed repositories
 $ packtrix export -o bundle-2026-10-22.tar.zst
 
 # carry the bundle across the air gap

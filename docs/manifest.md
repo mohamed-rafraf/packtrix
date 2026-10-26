@@ -187,9 +187,9 @@ Versions are compared with each format's native rules (`dpkg` ordering for deb; 
 
 | Field | Default | Description |
 |---|---|---|
-| `path` | `./repos` | Output directory |
+| `path` | `./repos` | Output directory. A relative path starts from the manifest's directory. Machines are served from `<path>/current`. |
 | `signing.key` | — | Reference to the private signing key, e.g. `env:PACKTRIX_SIGNING_KEY` or `file:/path`. Required to publish APT repositories. |
-| `keepSnapshots` | `3` | Number of earlier snapshots to keep for rollback |
+| `keepSnapshots` | `3` | Number of earlier snapshots kept next to the current one, for rollback. Their package files are hard links into the pool, so they take little space. |
 
 ## `spec.export`
 
