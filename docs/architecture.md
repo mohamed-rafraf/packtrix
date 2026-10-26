@@ -156,7 +156,7 @@ Implemented:
 ```
 cmd/packtrix/                   binary entry point
 internal/catalog/               built-in distros: repositories, components, keys pinned by fingerprint
-internal/build/                 the published repositories: one signed repository per target, from the lock and the pool
+internal/build/                 the published repositories, one signed repository per target, and the machines' client files
 internal/cli/                   commands (cobra)
 internal/version/               build information
 internal/deb/                   Debian versions and how they sort, dependency fields, Packages indexes, version constraints

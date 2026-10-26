@@ -69,22 +69,29 @@ rocky-9  (Rocky Linux 9 · rpm · x86_64)
 
 ```
 /srv/repos/current/
-├── apt/        ubuntu/…  debian/…
-├── rpm/        rocky/9/x86_64/…
-├── keys/       packtrix-repo.gpg, vendor keys
-└── clients/    ubuntu-24.04.sources, rocky-9.repo
+├── apt/        ubuntu-24.04/…  debian-12/…   one repository per target
+├── rpm/        rocky-9/…
+├── keys/       packtrix-repo.asc, packtrix-repo.gpg
+└── clients/    ubuntu-24.04.sources, rocky-9.repo, README
 ```
 
-On each machine, copy two files: its client file and the repository key.
+On each machine, copy two files: its client file and the repository key. `clients/README` lists them for each target.
+
+```
+clients/ubuntu-24.04.sources  ->  /etc/apt/sources.list.d/packtrix.sources
+keys/packtrix-repo.gpg        ->  /etc/apt/keyrings/packtrix-repo.gpg
+```
 
 ```
 # /etc/apt/sources.list.d/packtrix.sources   (Ubuntu 24.04)
 Types: deb
-URIs: http://repo.internal/apt/ubuntu
+URIs: http://repo.internal/apt/ubuntu-24.04/
 Suites: noble
 Components: main
 Signed-By: /etc/apt/keyrings/packtrix-repo.gpg
 ```
+
+`URIs` comes from `sync --base-url`, the URL where the published directory is served. Without it, the files use `http://packtrix-repository.invalid`, which `apt` refuses, so a missing URL can't go unnoticed. A machine without internet access should have no other source, so move the distro's own entries, such as `/etc/apt/sources.list.d/ubuntu.sources`, aside.
 
 All packages for a target, from the distro and from vendors, are merged into one repository. Each machine therefore needs a single source entry.
 

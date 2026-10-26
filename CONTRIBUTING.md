@@ -29,7 +29,7 @@ The code is organized as follows:
 | Path | Contents |
 |---|---|
 | `cmd/packtrix/` | The binary's entry point |
-| `internal/build/` | Builds the published repositories: one signed repository per target, from the lock and the pool |
+| `internal/build/` | Builds the published repositories, one signed repository per target from the lock and the pool, and the client files of the machines |
 | `internal/catalog/` | The built-in distros: their repositories, components and keys |
 | `internal/cli/` | The commands |
 | `internal/deb/` | Debian versions, dependency fields, Packages indexes and version constraints |
