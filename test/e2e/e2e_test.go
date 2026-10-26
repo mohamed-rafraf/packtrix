@@ -29,6 +29,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -141,8 +142,9 @@ type repository struct {
 	target string
 }
 
-// publish plans and syncs a manifest of one distro, and serves the result
-// on the host's network, where containers reach it.
+// publish plans and syncs a manifest of one distro, for the host's
+// architecture, which its containers have too, and serves the result on
+// the host's network, where containers reach it.
 func publish(t *testing.T, distro string, pkgs, exclude []string) *repository {
 	t.Helper()
 	dir := t.TempDir()
@@ -157,6 +159,7 @@ metadata:
 spec:
   targets:
     - distro: %s
+      architectures: [%s]
   packages: [%s]
   resolve:
     baseline: none
@@ -164,7 +167,7 @@ spec:
   publish:
     signing:
       key: file:signing.asc
-`, distro, strings.Join(pkgs, ", "), strings.Join(exclude, ", "))
+`, distro, runtime.GOARCH, strings.Join(pkgs, ", "), strings.Join(exclude, ", "))
 	if err := os.WriteFile(filepath.Join(dir, "packtrix.yaml"), []byte(manifest), 0o600); err != nil {
 		t.Fatal(err)
 	}
