@@ -39,6 +39,12 @@ GOLANGCI_LINT := $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 HUGO_VERSION ?= v0.167.0
 HUGO := $(LOCALBIN)/hugo-$(HUGO_VERSION)
 
+# The release workflow pins the same versions.
+GORELEASER_VERSION ?= v2.18.3
+GORELEASER := $(LOCALBIN)/goreleaser-$(GORELEASER_VERSION)
+SYFT_VERSION ?= v1.54.0
+SYFT := $(LOCALBIN)/syft-$(SYFT_VERSION)
+
 .PHONY: build
 build: $(addprefix $(LOCALBIN)/,$(CMDS))
 
@@ -106,6 +112,21 @@ site-serve: $(HUGO)
 $(HUGO):
 	GOTOOLCHAIN=auto GOBIN=$(abspath $(LOCALBIN)) go install github.com/gohugoio/hugo@$(HUGO_VERSION)
 	mv $(LOCALBIN)/hugo $@
+
+# Builds a release into dist/ as the release workflow does, without signing
+# or publishing it: the archives, checksums.txt and the SBOMs.
+.PHONY: release-snapshot
+release-snapshot: $(GORELEASER) $(SYFT)
+	ln -sf $(notdir $(SYFT)) $(LOCALBIN)/syft
+	PATH="$(abspath $(LOCALBIN)):$$PATH" $(GORELEASER) release --snapshot --clean --skip=sign
+
+$(GORELEASER):
+	GOTOOLCHAIN=auto GOBIN=$(abspath $(LOCALBIN)) go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
+	mv $(LOCALBIN)/goreleaser $@
+
+$(SYFT):
+	GOTOOLCHAIN=auto GOBIN=$(abspath $(LOCALBIN)) go install github.com/anchore/syft/cmd/syft@$(SYFT_VERSION)
+	mv $(LOCALBIN)/syft $@
 
 .PHONY: update-codegen
 update-codegen:

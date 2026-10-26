@@ -1,0 +1,94 @@
+# Copyright 2026 The Packtrix Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Releases: static binaries, archives, checksums, an SBOM per archive, and a
+# keyless signature of the checksums. The release workflow runs it on v* tags;
+# make release-snapshot is a local dry run. See docs/releasing.md.
+version: 2
+project_name: packtrix
+
+builds:
+  - id: packtrix
+    main: ./cmd/packtrix
+    binary: packtrix
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    # The same build information as make build, see internal/version.
+    ldflags:
+      - -w
+        -X github.com/packtrix/packtrix/internal/version.version={{ if .IsSnapshot }}{{ .Version }}{{ else }}{{ .Tag }}{{ end }}
+        -X github.com/packtrix/packtrix/internal/version.commit={{ .FullCommit }}
+        -X github.com/packtrix/packtrix/internal/version.date={{ .Date }}
+    # Files in the archives get the commit's time, so a build can be repeated.
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# An SPDX SBOM per archive, written by syft.
+sboms:
+  - artifacts: archive
+
+# A keyless signature of checksums.txt, with the identity of the release
+# workflow, as a Sigstore bundle. Verifying it vouches for every file that
+# checksums.txt lists.
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - --bundle=${signature}
+      - ${artifact}
+      - --yes
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot-{{ .ShortCommit }}"
+
+# Pull request titles follow Conventional Commits, and squash merges keep
+# them as commit messages.
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))?!?:.+$'
+      order: 0
+    - title: Fixes
+      regexp: '^.*?fix(\(.+\))?!?:.+$'
+      order: 1
+    - title: Documentation
+      regexp: '^.*?docs(\(.+\))?!?:.+$'
+      order: 2
+    - title: Other
+      order: 999
+
+release:
+  github:
+    owner: packtrix
+    name: packtrix
+  # A tag such as v0.2.0-rc.1 makes a pre-release.
+  prerelease: auto
