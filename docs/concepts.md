@@ -1,6 +1,6 @@
 # Concepts
 
-> **Status: design draft.**
+> **Status: early development.** This works today for Ubuntu and Debian targets, with distro and custom repositories. Planned: RPM, built-in vendor repositories (and `repo:`), discovery, and bundles.
 
 This page defines the vocabulary used everywhere else in the docs.
 
@@ -62,7 +62,7 @@ There are three kinds:
 
 ## Dependency resolution
 
-For each target, Packtrix computes every package the machines need from the repositories' own metadata: the listed packages and their dependencies, minus what the baseline already provides. It follows the rules `apt` and `dnf` apply, and its results are checked against them. It needs no container runtime. See [Architecture](architecture.md#resolution).
+For each target, Packtrix computes every package the machines need from the repositories' own metadata: the listed packages and their dependencies, minus what the baseline already provides. It follows the rules `apt` and `dnf` apply, and its results are tested by installing them with the real `apt`. It needs no container runtime. See [Architecture](architecture.md#resolution).
 
 ### Baseline
 

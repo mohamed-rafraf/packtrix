@@ -1,6 +1,7 @@
 {{ define "main" }}
 {{- $docs := site.GetPage "/docs" -}}
 {{- $roadmap := site.GetPage "/docs/roadmap" -}}
+{{- $start := site.GetPage "/docs/getting-started" -}}
 {{- $repo := "https://github.com/packtrix/packtrix" -}}
 {{- $manifest := `apiVersion: packtrix.io/v1alpha1
 kind: OfflineRepository
@@ -32,7 +33,8 @@ $ packtrix export   # one bundle for the air gap` -}}
       <h1>Declarative <span class="px-accent">offline</span> APT and RPM repositories</h1>
       <p class="px-lead">List the packages your air-gapped Linux machines need. Packtrix resolves every dependency for every distro you run, then builds signed APT and RPM repositories you can carry across the air gap.</p>
       <div class="px-actions">
-        <a class="px-button px-button-primary" href="{{ $docs.RelPermalink }}">Read the docs</a>
+        <a class="px-button px-button-primary" href="{{ $start.RelPermalink }}">Get started</a>
+        <a class="px-button" href="{{ $docs.RelPermalink }}">Read the docs</a>
         <a class="px-button" href="{{ $repo }}">View on GitHub</a>
       </div>
     </div>
@@ -113,13 +115,13 @@ $ packtrix export   # one bundle for the air gap` -}}
 
   <section class="px-section">
     <h2>Where it's going</h2>
-    <p class="px-intro">Packtrix validates manifests today. Each release adds a working part of the pipeline; the <a href="{{ $roadmap.RelPermalink }}">roadmap</a> has the details.</p>
+    <p class="px-intro">Packtrix builds signed APT repositories for Ubuntu and Debian today: <a href="{{ $start.RelPermalink }}">get started</a>. Each release adds a working part of the pipeline; the <a href="{{ $roadmap.RelPermalink }}">roadmap</a> has the details.</p>
     <div class="px-grid px-grid-4">
       {{- range slice
         (dict "version" "v0.1.0" "name" "APT" "milestone" 2 "text" "Resolve and mirror Ubuntu 22.04/24.04 and Debian 12/13 into signed APT repositories.")
         (dict "version" "v0.2.0" "name" "RPM" "milestone" 3 "text" "Rocky Linux 9 and AlmaLinux 9, on the same resolver and pipeline.")
         (dict "version" "v0.3.0" "name" "Air gap and updates" "milestone" 4 "text" "Snapshots, bundles, delta updates, update checks and plan diffs.")
-        (dict "version" "v0.4.0" "name" "Catalog growth" "milestone" 5 "text" "Vendor repositories found automatically, more distros, RHEL and arm64.")
+        (dict "version" "v0.4.0" "name" "Catalog growth" "milestone" 5 "text" "Vendor repositories found automatically, and more distros, including RHEL.")
       }}
       <a class="px-card px-card-link" href="{{ $repo }}/milestone/{{ .milestone }}">
         <p class="px-label">{{ .version }}</p>
