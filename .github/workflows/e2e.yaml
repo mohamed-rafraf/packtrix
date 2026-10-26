@@ -39,6 +39,9 @@ jobs:
           - TestInstall/ubuntu-24.04
           - TestInstall/debian-12
           - TestInstall/debian-13
+          - TestExample/ubuntu-24.04
+          - TestExample/ubuntu-22.04
+          - TestExample/debian-12
           - TestMissingDependency
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
