@@ -20,6 +20,16 @@ spec:
 
 Everything else has a default.
 
+## Editor support
+
+A JSON Schema of the manifest, [`schemas/v1alpha1/offlinerepository.json`](../schemas/v1alpha1/offlinerepository.json), lets editors complete fields and values, show what each field does and its default, and mark mistakes as you type. Editors that use the YAML language server, such as VS Code with Red Hat's YAML extension, or Neovim, find it through a comment in the manifest:
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/packtrix/packtrix/main/schemas/v1alpha1/offlinerepository.json
+```
+
+Other editors can map the schema to `packtrix.yaml` in their settings. The schema checks each field like `packtrix validate`, but not the rules across fields, such as unique target names or `only` naming an existing target: `packtrix validate` still has the last word. It is generated from the API types, with `make update-schema`.
+
 ## Full structure
 
 ```yaml

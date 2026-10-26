@@ -53,13 +53,18 @@ func (e ValidationError) Error() string {
 	return b.String()
 }
 
+const (
+	// NamePattern matches names of manifests, targets, distros and
+	// repositories: lowercase alphanumerics, '-' and '.', e.g. "ubuntu-24.04".
+	NamePattern = `^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$`
+	// PackageNamePattern matches Debian and RPM package names, e.g.
+	// "libstdc++6" or "NetworkManager".
+	PackageNamePattern = `^[A-Za-z0-9][A-Za-z0-9+._-]*$`
+)
+
 var (
-	// nameRE matches names of manifests, targets, distros and repositories:
-	// lowercase alphanumerics, '-' and '.', e.g. "ubuntu-24.04".
-	nameRE = regexp.MustCompile(`^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$`)
-	// packageNameRE accepts Debian and RPM package names, e.g. "libstdc++6"
-	// or "NetworkManager".
-	packageNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9+._-]*$`)
+	nameRE        = regexp.MustCompile(NamePattern)
+	packageNameRE = regexp.MustCompile(PackageNamePattern)
 )
 
 const maxNameLength = 63

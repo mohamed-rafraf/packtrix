@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# yaml-language-server: $schema=https://raw.githubusercontent.com/packtrix/packtrix/main/schemas/v1alpha1/offlinerepository.json
+
 # A mixed Ubuntu / Rocky / RHEL fleet running containers and Kubernetes.
 #
 # Docker, Kubernetes and NVIDIA repositories are never listed: Packtrix adds them

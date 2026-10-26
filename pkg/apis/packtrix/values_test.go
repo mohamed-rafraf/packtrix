@@ -17,6 +17,7 @@ limitations under the License.
 package packtrix
 
 import (
+	"regexp"
 	"testing"
 )
 
@@ -68,17 +69,19 @@ func TestByteSizeString(t *testing.T) {
 	}
 }
 
+// Validate and SecretRefPattern agree.
 func TestSecretRefValidate(t *testing.T) {
+	pattern := regexp.MustCompile(SecretRefPattern)
 	valid := []SecretRef{"env:PACKTRIX_SIGNING_KEY", "env:_X1", "file:/etc/packtrix/key.asc", "file:key.asc"}
 	for _, r := range valid {
-		if err := r.Validate(); err != nil {
-			t.Errorf("%q: %v", r, err)
+		if err := r.Validate(); err != nil || !pattern.MatchString(string(r)) {
+			t.Errorf("%q: %v, pattern matches: %t", r, err, pattern.MatchString(string(r)))
 		}
 	}
 	invalid := []SecretRef{"PACKTRIX_KEY", "env:", "env:1X", "env:A-B", "file:", "vault:secret/key", "s3cret"}
 	for _, r := range invalid {
-		if err := r.Validate(); err == nil {
-			t.Errorf("%q: want error", r)
+		if err := r.Validate(); err == nil || pattern.MatchString(string(r)) {
+			t.Errorf("%q: want error, and no match", r)
 		}
 	}
 }

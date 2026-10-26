@@ -29,7 +29,12 @@ import (
 // environment variable and "file:/path" reads a file.
 type SecretRef string
 
-var envNameRE = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+// SecretRefPattern matches the references that SecretRef.Validate accepts.
+const SecretRefPattern = `^(env:` + envName + `|file:.+)$`
+
+const envName = `[A-Za-z_][A-Za-z0-9_]*`
+
+var envNameRE = regexp.MustCompile(`^` + envName + `$`)
 
 // Validate checks the reference's syntax.
 func (r SecretRef) Validate() error {
