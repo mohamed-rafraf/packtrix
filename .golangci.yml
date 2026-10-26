@@ -15,6 +15,9 @@
 version: "2"
 run:
   modules-download-mode: readonly
+  # Lint the end-to-end tests too.
+  build-tags:
+    - e2e
 linters:
   default: none
   enable:
