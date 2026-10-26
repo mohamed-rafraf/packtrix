@@ -38,6 +38,7 @@ from a single manifest, ready to carry into air-gapped environments.`,
 		newCatalogCommand(),
 		newPlanCommand(),
 		newRenderCommand(),
+		newSyncCommand(),
 		newValidateCommand(),
 		newVersionCommand(),
 	)

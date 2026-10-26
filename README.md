@@ -10,7 +10,7 @@
 List the packages your air-gapped Linux machines need. Packtrix resolves every dependency for every distro you run, then builds signed APT and RPM repositories you can carry across the air gap.
 
 > [!NOTE]
-> **Status: early development.** For Ubuntu and Debian, the CLI can validate a manifest (`packtrix validate`), show its repositories (`packtrix render`), and resolve every target against the verified upstream metadata into `packtrix.lock` (`packtrix plan`). Downloading and publishing aren't implemented yet. The manifest format, CLI and architecture described here are proposals that will change. Feedback is welcome; see [Contributing](#contributing).
+> **Status: early development.** For Ubuntu and Debian, the CLI can validate a manifest (`packtrix validate`), show its repositories (`packtrix render`), resolve every target against the verified upstream metadata into `packtrix.lock` (`packtrix plan`), and download, build and publish signed repositories with the machines' client files (`packtrix sync`). Bundles for the air gap (`export`, `import`) aren't implemented yet. The manifest format, CLI and architecture described here are proposals that will change. Feedback is welcome; see [Contributing](#contributing).
 
 ## Why
 

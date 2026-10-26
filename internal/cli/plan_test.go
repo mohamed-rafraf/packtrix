@@ -18,7 +18,10 @@ package cli
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,25 +38,20 @@ func planFixture(t *testing.T, packages string) (manifest, caFile string) {
 	t.Helper()
 	signer, _ := apttest.Key(t)
 	a := apttest.New(t, signer, true)
+	// The package files, of the sizes plan prints.
+	deb := func(name string, size int, fields string) string {
+		filename := "pool/main/" + name + "_8.1_amd64.deb"
+		content := bytes.Repeat([]byte(name), size/len(name)+1)[:size]
+		a.Write("debian/"+filename, content)
+		sum := sha256.Sum256(content)
+		return fmt.Sprintf("Package: %s\nVersion: 8.1\nArchitecture: amd64\n%sFilename: %s\nSize: %d\nSHA256: %s\n\n",
+			name, fields, filename, size, hex.EncodeToString(sum[:]))
+	}
 	a.Publish(apttest.Suite{
 		Dir:          "debian/dists/test",
 		Fields:       "Origin: Debian\nSuite: test\nCodename: test\n",
 		Compressions: []string{".gz"},
-		Indexes: map[string]string{"main/binary-amd64/Packages": `Package: curl
-Version: 8.1
-Architecture: amd64
-Depends: libcurl4
-Filename: pool/main/curl_8.1_amd64.deb
-Size: 230000
-SHA256: 0000000000000000000000000000000000000000000000000000000000000001
-
-Package: libcurl4
-Version: 8.1
-Architecture: amd64
-Filename: pool/main/libcurl4_8.1_amd64.deb
-Size: 1500000
-SHA256: 0000000000000000000000000000000000000000000000000000000000000002
-`},
+		Indexes:      map[string]string{"main/binary-amd64/Packages": deb("curl", 230000, "Depends: libcurl4\n") + deb("libcurl4", 1500000, "")},
 	})
 	dir := t.TempDir()
 	public, err := signer.PublicKey()
@@ -61,6 +59,9 @@ SHA256: 0000000000000000000000000000000000000000000000000000000000000002
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "archive.asc"), public, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "signing.asc"), apttest.PrivateKey(t), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	manifest = filepath.Join(dir, "packtrix.yaml")
@@ -81,6 +82,9 @@ spec:
   packages: ` + packages + `
   resolve:
     baseline: none
+  publish:
+    signing:
+      key: file:signing.asc
 `
 	if err := os.WriteFile(manifest, []byte(data), 0o600); err != nil {
 		t.Fatal(err)

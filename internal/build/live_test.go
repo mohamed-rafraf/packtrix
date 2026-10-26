@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -85,65 +84,24 @@ func TestLiveAPTGet(t *testing.T) {
 	}
 	t.Logf("%+v", targets)
 
-	aptGet, err := exec.LookPath("apt-get")
-	if err != nil {
-		t.Skip("apt-get isn't installed")
-	}
 	server := httptest.NewServer(http.FileServer(http.Dir(dir)))
 	defer server.Close()
 
-	// apt's state lives in a temporary directory, and trusts only the
-	// published key. It uses the generated source entry, with the key where
-	// the test can put it.
+	// apt-get trusts only the published key, and uses the generated source
+	// entry, with the key where the test can put it.
 	if err := Clients(dir, targets, signer, server.URL); err != nil {
 		t.Fatal(err)
 	}
-	state := t.TempDir()
-	for _, d := range []string{"sources.list.d", "trusted.gpg.d", "lists/partial", "archives/partial", "download"} {
-		if err := os.MkdirAll(filepath.Join(state, d), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	key := filepath.Join(dir, "keys", KeyName+".gpg")
 	sources, err := os.ReadFile(filepath.Join(dir, "clients", "ubuntu-24.04.sources"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	sources = []byte(strings.Replace(string(sources), "Signed-By: "+keyPath, "Signed-By: "+key, 1))
-	if err := os.WriteFile(filepath.Join(state, "sources.list.d", "packtrix.sources"), sources, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	apt := func(args ...string) string {
-		t.Helper()
-		options := []string{
-			"-o", "Dir::Etc::SourceList=/dev/null",
-			"-o", "Dir::Etc::SourceParts=" + filepath.Join(state, "sources.list.d"),
-			"-o", "Dir::Etc::Trusted=/dev/null",
-			"-o", "Dir::Etc::TrustedParts=" + filepath.Join(state, "trusted.gpg.d"),
-			"-o", "Dir::State::Lists=" + filepath.Join(state, "lists"),
-			"-o", "Dir::Cache=" + state,
-			"-o", "Dir::Cache::Archives=" + filepath.Join(state, "archives"),
-			"-o", "Debug::NoLocking=1",
-		}
-		cmd := exec.CommandContext(t.Context(), aptGet, append(options, args...)...)
-		cmd.Dir = filepath.Join(state, "download")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("apt-get %s: %v\n%s", strings.Join(args, " "), err, out)
-		}
-		return string(out)
-	}
-
-	out := apt("update")
-	t.Log(out)
-	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(line, "W:") || strings.HasPrefix(line, "E:") || strings.HasPrefix(line, "N:") {
-			t.Errorf("apt-get update: %s", line)
-		}
-	}
-	t.Log(apt("download", "curl"))
+	key := filepath.Join(dir, "keys", KeyName+".gpg")
+	apt := apttest.NewAPT(t, strings.Replace(string(sources), "Signed-By: "+keyPath, "Signed-By: "+key, 1))
+	t.Log(apt.Run("update"))
+	t.Log(apt.Run("download", "curl"))
+	debs, _ := filepath.Glob(filepath.Join(apt.DownloadDir(), "curl_*.deb"))
 	curl := l.Spec.Targets[0].Packages[0]
-	debs, _ := filepath.Glob(filepath.Join(state, "download", "curl_*.deb"))
 	if len(debs) != 1 {
 		t.Fatalf("apt-get download wrote %q", debs)
 	}
