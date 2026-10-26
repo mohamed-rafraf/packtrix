@@ -52,6 +52,7 @@ Goal: the same manifest also produces working, signed RPM repositories, with the
 
 - Vendor repositories with auto-detection: `docker`, `kubernetes@<minor>`, `cri-o@<minor>`, `nvidia-container-toolkit`, `epel-<major>`
 - More distros: Rocky/Alma 8 and 10, CentOS Stream, RHEL (with subscription `auth`), Ubuntu 26.04
+- `aarch64` for the RPM distros; the APT distros have `arm64` since v0.1.0
 - Nightly catalog checks in CI; `catalog update`; signed catalog releases
 
 ## Phase 5: Discovery
