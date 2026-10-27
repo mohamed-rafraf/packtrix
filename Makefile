@@ -45,6 +45,9 @@ GORELEASER := $(LOCALBIN)/goreleaser-$(GORELEASER_VERSION)
 SYFT_VERSION ?= v1.54.0
 SYFT := $(LOCALBIN)/syft-$(SYFT_VERSION)
 
+GOVULNCHECK_VERSION ?= v1.9.0
+GOVULNCHECK := $(LOCALBIN)/govulncheck-$(GOVULNCHECK_VERSION)
+
 .PHONY: build
 build: $(addprefix $(LOCALBIN)/,$(CMDS))
 
@@ -77,6 +80,16 @@ test-live:
 .PHONY: test-e2e
 test-e2e:
 	go test -tags e2e -count=1 -timeout 30m -v -run '$(E2E_RUN)' ./test/e2e/...
+
+# Fails if the code calls a function with a known vulnerability, in a module
+# or in the standard library. It reads the Go vulnerability database online.
+.PHONY: vulncheck
+vulncheck: $(GOVULNCHECK)
+	$(GOVULNCHECK) ./...
+
+$(GOVULNCHECK):
+	GOBIN=$(abspath $(LOCALBIN)) go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+	mv $(LOCALBIN)/govulncheck $@
 
 # Fails, showing the difference, if go.mod or go.sum aren't tidy.
 .PHONY: verify-gomod
