@@ -71,8 +71,9 @@ test-live:
 	go test -race -run '^TestLive' ./...
 
 # Publishes repositories from live upstream repositories and installs from
-# them in clean containers of each distro, with docker. E2E_RUN selects
-# tests, such as E2E_RUN=TestInstall/debian-13.
+# them in clean containers of each distro, with docker, and compares the
+# dependency closures with apt's (TestCompare). E2E_RUN selects tests, such
+# as E2E_RUN=TestInstall/debian-13.
 .PHONY: test-e2e
 test-e2e:
 	go test -tags e2e -count=1 -timeout 30m -v -run '$(E2E_RUN)' ./test/e2e/...
