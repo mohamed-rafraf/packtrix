@@ -64,7 +64,7 @@ The files in `examples/` are loaded by the tests, so they must always stay valid
 `main` is protected:
 
 - Every change goes through a **pull request** from a fork. Direct pushes, force pushes and branch deletion are blocked.
-- The checks `pull-boilerplate`, `pull-verify-codegen`, `pull-lint`, `pull-test` and `pull-build` must pass. `make verify` runs the same checks locally.
+- The checks `pull-title`, `pull-boilerplate`, `pull-verify-codegen`, `pull-lint`, `pull-test` and `pull-build` must pass. `make verify` runs all but the title check locally.
 - Pull requests are **squash-merged**, so each one becomes a single commit on `main`.
 - All review conversations must be resolved before merging.
 
@@ -78,7 +78,22 @@ feat: add rocky-10 to the catalog
 fix: reject targets that mix releases
 ```
 
-Common prefixes: `docs`, `feat`, `fix`, `refactor`, `test`, `ci`, `chore`.
+The `pull-title` check accepts these types, with an optional scope such as `feat(catalog):`:
+
+| Type | For |
+|---|---|
+| `feat` | A new feature |
+| `fix` | A bug fix |
+| `docs` | Documentation only |
+| `test` | Tests only |
+| `ci` | Workflows and CI configuration |
+| `build` | The build and the release pipeline |
+| `refactor` | A code change that neither fixes a bug nor adds a feature |
+| `perf` | A performance improvement |
+| `chore` | Maintenance, such as dependency updates |
+| `revert` | Reverting an earlier change |
+
+Release notes group pull requests by type: features, fixes, documentation, and the rest. Editing the title runs the check again.
 
 ### Forks and branches
 
