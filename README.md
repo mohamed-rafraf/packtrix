@@ -7,6 +7,8 @@
 
 <p align="center"><strong>Declarative offline APT and RPM repositories.</strong></p>
 
+<p align="center"><a href="https://scorecard.dev/viewer/?uri=github.com/packtrix/packtrix"><img alt="OpenSSF Scorecard" src="https://api.scorecard.dev/projects/github.com/packtrix/packtrix/badge"></a></p>
+
 List the packages your air-gapped Linux machines need. Packtrix resolves every dependency for every distro you run, then builds signed APT and RPM repositories you can carry across the air gap.
 
 > [!NOTE]

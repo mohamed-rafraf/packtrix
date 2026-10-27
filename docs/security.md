@@ -75,4 +75,4 @@ Shipping repository definitions and keys makes the built-in catalog a trust anch
 
 ## Reporting a vulnerability
 
-A `SECURITY.md` with a private reporting channel will be added before the first release.
+Please report vulnerabilities privately, through GitHub: [SECURITY.md](../SECURITY.md) says how, and what to expect.
