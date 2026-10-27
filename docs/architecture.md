@@ -87,7 +87,9 @@ Release versions matter for machines installed from older media: if a package ne
 
 The resolver must agree with the tools the machines run:
 
-- **Nightly, in CI:** for every built-in distro, Packtrix publishes test manifests, and the real `apt` installs every listed package from them in clean containers (`test/e2e`). *(Planned)* The same manifests are also resolved by `apt` and `dnf` themselves, and the check fails if they pick a package that Packtrix's closure doesn't contain.
+- **Nightly, in CI:** for every built-in distro, in clean containers (`test/e2e`):
+  - Packtrix publishes test manifests, and the real `apt` installs every listed package from them;
+  - sets of packages (a small server, alternatives and virtual packages, Kubernetes node prerequisites) are resolved by Packtrix and by `apt` itself, from the same repositories. The check fails if `apt` picks a package, or a version, that Packtrix's closure doesn't contain, and reports what the closure has beyond `apt`. It also runs on pull requests that change how packages are read or resolved. *(Planned)* The same for `dnf`.
 - *(Planned)* **Optionally, on your side:** `packtrix sync --verify-install` runs the [validation](#validation) step when `podman` or `docker` is available.
 
 Containers are used for these checks only. Producing repositories never needs them.

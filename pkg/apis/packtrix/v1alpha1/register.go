@@ -28,6 +28,10 @@ const GroupName = "packtrix.io"
 // SchemeGroupVersion is group version used to register API objects.
 var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1alpha1"}
 
+// SchemaURL is where the JSON Schema of the manifest is published, for
+// editors: hack/schema generates it from these types.
+const SchemaURL = "https://raw.githubusercontent.com/packtrix/packtrix/main/schemas/v1alpha1/offlinerepository.json"
+
 var (
 	// SchemeBuilder points to a list of functions added to Scheme.
 	SchemeBuilder      runtime.SchemeBuilder

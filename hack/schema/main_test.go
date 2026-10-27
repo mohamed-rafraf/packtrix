@@ -25,6 +25,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"sigs.k8s.io/yaml"
 
+	"github.com/packtrix/packtrix/internal/cli"
 	"github.com/packtrix/packtrix/pkg/apis/packtrix/manifest"
 	"github.com/packtrix/packtrix/pkg/apis/packtrix/validation"
 )
@@ -96,6 +97,24 @@ func TestExamples(t *testing.T) {
 		if !bytes.Contains(data, []byte("# yaml-language-server: $schema="+ID+"\n")) {
 			t.Errorf("%s doesn't point editors to the schema", file)
 		}
+	}
+}
+
+// The manifest that packtrix init writes points editors to the schema, and
+// validates against it.
+func TestStarter(t *testing.T) {
+	var out bytes.Buffer
+	cmd := cli.NewRootCommand()
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"init", "--name", "test", "--target", "ubuntu-24.04,debian-12", "--package", "curl"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(out.Bytes(), []byte("# yaml-language-server: $schema="+ID+"\n")) {
+		t.Errorf("the starter doesn't start with the schema:\n%s", out.Bytes())
+	}
+	if err := check(t, schema(t), out.Bytes()); err != nil {
+		t.Error(err)
 	}
 }
 

@@ -3,7 +3,7 @@
   stay plain Markdown, so they also render on GitHub: each page's title is the
   file's first heading, which is removed from the body.
 */ -}}
-{{- $pages := slice "getting-started" "overview" "concepts" "manifest" "workflow" "architecture" "security" "catalog" "roadmap" -}}
+{{- $pages := slice "getting-started" "overview" "concepts" "manifest" "workflow" "architecture" "security" "catalog" "roadmap" "releasing" -}}
 {{- range $i, $name := $pages -}}
   {{- with resources.Get (printf "docs/%s.md" $name) -}}
     {{- $text := .Content -}}
