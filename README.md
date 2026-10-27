@@ -106,6 +106,7 @@ The documentation is also on the website: **[packtrix.github.io](https://packtri
 | [Security](docs/security.md) | Trust model, GPG signing, HTTPS |
 | [Built-in catalog](docs/catalog.md) | Built-in repositories and how they are detected automatically |
 | [Roadmap](docs/roadmap.md) | Phases and open questions |
+| [Releasing](docs/releasing.md) | How releases are cut and verified |
 
 More examples are in [`examples/`](examples/).
 

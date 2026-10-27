@@ -17,4 +17,5 @@ Start with Getting started, then the Overview, Concepts, the Manifest reference 
   {{< card link="security" title="Security" subtitle="How trust flows from upstream vendors to your machines, and how HTTPS and GPG are handled" icon="shield-check" >}}
   {{< card link="catalog" title="Built-in catalog" subtitle="Which distros and vendor repositories are built in, and how Packtrix picks them" icon="collection" >}}
   {{< card link="roadmap" title="Roadmap" subtitle="Delivery phases and decisions that are still open" icon="map" >}}
+  {{< card link="releasing" title="Releasing" subtitle="How releases are cut, and how to verify one before installing it" icon="badge-check" >}}
 {{< /cards >}}

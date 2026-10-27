@@ -62,7 +62,7 @@ There are three kinds:
 
 ## Dependency resolution
 
-For each target, Packtrix computes every package the machines need from the repositories' own metadata: the listed packages and their dependencies, minus what the baseline already provides. It follows the rules `apt` and `dnf` apply, and its results are tested by installing them with the real `apt`. It needs no container runtime. See [Architecture](architecture.md#resolution).
+For each target, Packtrix computes every package the machines need from the repositories' own metadata: the listed packages and their dependencies, minus what the baseline already provides. It follows the rules `apt` and `dnf` apply. Its results are compared nightly with what the real `apt` picks, and installed with it. It needs no container runtime. See [Architecture](architecture.md#resolution).
 
 ### Baseline
 

@@ -15,18 +15,18 @@
 Goal: one manifest produces working, signed APT repositories on a local disk, for Ubuntu and Debian. [Getting started](getting-started.md) shows what works.
 
 - [x] Manifest parsing, defaults, validation
-- [ ] JSON Schema of the manifest, for editors
+- [x] JSON Schema of the manifest, for editors
 - [x] Catalog: `ubuntu-22.04`, `ubuntu-24.04`, `debian-12`, `debian-13`, on `amd64` and `arm64`
 - [x] Dependency resolution in Go for APT
-- [ ] Resolution checked nightly against `apt`
+- [x] Resolution checked nightly against `apt`
 - [x] Download, upstream signature verification, content-addressed pool
 - [x] APT metadata subsetting and signing
 - [x] `packtrix.lock`
 - [x] Generated client files (`clients/`) and keys (`keys/`)
-- [x] Commands: `validate`, `render`, `plan`, `sync`, `catalog`
-- [ ] `init`
+- [x] Commands: `init`, `validate`, `render`, `plan`, `sync`, `catalog`
 - [x] Integration tests: install from the generated repositories in clean containers of each distro
-- [ ] Release binaries
+- [x] Release pipeline: archives, SBOMs, signed checksums and build provenance ([releasing](releasing.md))
+- [ ] The v0.1.0 release
 
 RPM targets are valid in a manifest, but `plan` reports them as not supported yet.
 

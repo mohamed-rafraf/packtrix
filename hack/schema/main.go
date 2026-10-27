@@ -44,7 +44,7 @@ import (
 )
 
 // ID is where the schema is published.
-const ID = "https://raw.githubusercontent.com/packtrix/packtrix/main/schemas/v1alpha1/offlinerepository.json"
+const ID = v1alpha1.SchemaURL
 
 // JSON types.
 const (

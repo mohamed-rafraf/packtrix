@@ -22,9 +22,10 @@ From a clone of the repository, `make build` writes `bin/packtrix` instead.
 
 ## 2. Create a signing key
 
-Packtrix signs the repositories it builds, and the machines trust them through your public key. Create a key for this purpose only:
+Packtrix signs the repositories it builds, and the machines trust them through your public key. In a new directory for the project, create a key for this purpose only:
 
 ```console
+$ mkdir my-servers && cd my-servers
 $ export GNUPGHOME=$(mktemp -d)      # don't touch your personal keyring
 $ gpg --batch --passphrase '' --quick-gen-key 'Packtrix Repository Signing <repo@example.org>' rsa3072 sign never
 $ gpg --armor --export-secret-keys > signing-key.asc
@@ -35,26 +36,49 @@ The key must be RSA of at least 3072 bits, or Ed25519, and must not be protected
 
 ## 3. Write a manifest
 
-Create `packtrix.yaml` next to the key:
+`packtrix init` writes a starter manifest for the distros your machines run, and the packages they need:
+
+```console
+$ packtrix init --target ubuntu-24.04 --target debian-12 --package curl,jq,nginx,rsync -f packtrix.yaml
+Wrote packtrix.yaml. Next: run packtrix plan.
+```
 
 ```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/packtrix/packtrix/main/schemas/v1alpha1/offlinerepository.json
+
+# A Packtrix manifest: the machines you run, and the packages they need.
+# Every field: https://packtrix.github.io/docs/manifest/
 apiVersion: packtrix.io/v1alpha1
 kind: OfflineRepository
 metadata:
   name: my-servers
 spec:
-  targets:                  # the kinds of machines you run
+  # The kinds of machines, one repository each. packtrix catalog list shows
+  # the distros. For arm64 machines, add architectures: [amd64, arm64].
+  targets:
     - distro: ubuntu-24.04
     - distro: debian-12
-  packages:                 # what they need; dependencies come with them
+
+  # What the machines need. Packtrix adds the dependencies.
+  packages:
     - curl
     - jq
     - nginx
     - rsync
+
+  # The machines already have a minimal installation of their distro. If they
+  # are containers, which have less, Packtrix can include everything:
+  # resolve:
+  #   baseline: none
+
   publish:
+    # The OpenPGP private key that signs the repositories, as file:/path or
+    # env:NAME. Keep it secret.
     signing:
       key: file:signing-key.asc
 ```
+
+The manifest is named after its directory; `--name` sets another name. The first line points editors to the manifest's JSON Schema, so they complete fields and flag mistakes: see [editor support](manifest.md#editor-support).
 
 - `targets` names the distributions. `packtrix catalog list` shows the built-in ones, and `packtrix catalog show ubuntu-24.04` their repositories and the keys Packtrix trusts for them.
 - `packages` is one list for every target. A package can be limited to some targets, have a version constraint such as `"1.34.*"`, or a different name per format: see the [manifest reference](manifest.md#specpackages).

@@ -13,5 +13,6 @@
 | [Security](security.md) | How trust flows from upstream vendors to your machines, and how HTTPS and GPG are handled |
 | [Built-in catalog](catalog.md) | Which distros and vendor repositories are built in, and how Packtrix picks them automatically |
 | [Roadmap](roadmap.md) | Delivery phases and decisions that are still open |
+| [Releasing](releasing.md) | How releases are cut, and how to verify one before installing it |
 
 **Suggested reading order:** Getting started → Overview → Concepts → Manifest reference → Workflow. Architecture and Security are for contributors and for anyone reviewing the trust model.

@@ -30,11 +30,14 @@ import (
 
 	"github.com/packtrix/packtrix/internal/catalog"
 	"github.com/packtrix/packtrix/pkg/apis/packtrix/manifest"
+	"github.com/packtrix/packtrix/pkg/apis/packtrix/v1alpha1"
 	"github.com/packtrix/packtrix/pkg/apis/packtrix/validation"
 )
 
 // starter is the manifest that init writes.
-var starter = template.Must(template.New("starter").Parse(`# A Packtrix manifest: the machines you run, and the packages they need.
+var starter = template.Must(template.New("starter").Parse(`# yaml-language-server: $schema={{ .Schema }}
+
+# A Packtrix manifest: the machines you run, and the packages they need.
 # Every field: https://packtrix.github.io/docs/manifest/
 apiVersion: packtrix.io/v1alpha1
 kind: OfflineRepository
@@ -107,9 +110,9 @@ The manifest is named after its directory unless --name is set.`,
 
 			var out bytes.Buffer
 			if err := starter.Execute(&out, struct {
-				Name              string
+				Schema, Name      string
 				Targets, Packages []string
-			}{name, targets, packages}); err != nil {
+			}{v1alpha1.SchemaURL, name, targets, packages}); err != nil {
 				return err
 			}
 			// Flags end up in the manifest: check what they made of it.

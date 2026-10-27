@@ -1,6 +1,6 @@
 # Workflow
 
-> **Status: partly implemented.** `validate`, `render`, `plan`, `sync` and `catalog list | show` work for Ubuntu and Debian. The rest is marked *planned*: a proposal that may change. To try what works, follow [Getting started](getting-started.md).
+> **Status: partly implemented.** `init`, `validate`, `render`, `plan`, `sync` and `catalog list | show` work for Ubuntu and Debian. The rest is marked *planned*: a proposal that may change. To try what works, follow [Getting started](getting-started.md).
 
 Packtrix runs in two places:
 
@@ -23,7 +23,7 @@ Packtrix runs in two places:
 
 | Command | Side | What it does |
 |---|---|---|
-| `packtrix init` *(planned)* | connected | Write a starter manifest, e.g. `--target ubuntu-24.04 --target rocky-9` |
+| `packtrix init` | connected | Write a starter manifest, e.g. `--target ubuntu-24.04 --target debian-12 --package curl`. It prints it, or writes it with `-f`, never over an existing file. |
 | `packtrix validate` | both | Check the manifest without network access |
 | `packtrix render` | connected | Print the fully expanded manifest: every built-in name replaced by its URLs, components and key fingerprints |
 | `packtrix plan` | connected | Resolve dependencies, write `packtrix.lock`, and print each target's packages, why each is needed, and how much will be downloaded. `-o json` for scripts, `--ca-file` for a private certificate authority, `--lock` to write the lock elsewhere, `--cache-dir` for the cache of upstream indexes. Nothing is written unless every target is planned. |
@@ -40,7 +40,7 @@ Packtrix runs in two places:
 
 ```console
 # connected side
-$ packtrix init --target ubuntu-24.04 --target debian-12 > packtrix.yaml   # planned; write it by hand for now
+$ packtrix init --target ubuntu-24.04 --target debian-12 > packtrix.yaml
 $ vi packtrix.yaml                     # list the packages
 $ packtrix plan                        # resolve; review what will be downloaded
 $ packtrix sync --base-url http://repo.internal   # download, verify, build signed repositories
