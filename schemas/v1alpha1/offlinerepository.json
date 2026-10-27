@@ -1,0 +1,547 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/packtrix/packtrix/main/schemas/v1alpha1/offlinerepository.json",
+  "title": "Packtrix manifest",
+  "description": "OfflineRepository describes which machines an offline environment runs and which packages they need. Packtrix turns it into one signed repository per target.",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "packtrix.io/v1alpha1"
+    },
+    "kind": {
+      "const": "OfflineRepository"
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "The manifest's name, e.g. k8s-nodes.",
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+          "maxLength": 63
+        }
+      },
+      "additionalProperties": false
+    },
+    "spec": {
+      "$ref": "#/definitions/OfflineRepositorySpec"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Auth": {
+      "description": "Auth holds credentials for an upstream repository. Secrets are always references, never literal values.",
+      "type": "object",
+      "properties": {
+        "clientCert": {
+          "description": "ClientCert and ClientKey are paths to a TLS client certificate.",
+          "type": "string"
+        },
+        "clientKey": {
+          "description": "ClientCert and ClientKey are paths to a TLS client certificate.",
+          "type": "string"
+        },
+        "entitlement": {
+          "description": "Entitlement is the directory holding RHEL subscription certificates, usually /etc/pki/entitlement.",
+          "type": "string"
+        },
+        "password": {
+          "description": "Username and Password are sent with basic authentication. Password is a secret reference: \"env:NAME\" or \"file:/path\".",
+          "type": "string",
+          "pattern": "^(env:[A-Za-z_][A-Za-z0-9_]*|file:.+)$"
+        },
+        "token": {
+          "description": "Token is sent as a bearer token. It is a secret reference: \"env:NAME\" or \"file:/path\".",
+          "type": "string",
+          "pattern": "^(env:[A-Za-z_][A-Za-z0-9_]*|file:.+)$"
+        },
+        "username": {
+          "description": "Username and Password are sent with basic authentication. Password is a secret reference: \"env:NAME\" or \"file:/path\".",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "AutoRepos": {
+      "description": "AutoRepos controls automatic detection of built-in vendor repositories.",
+      "type": "object",
+      "properties": {
+        "deny": {
+          "description": "Deny lists repositories never to add automatically, as glob patterns, e.g. \"epel-*\".",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "enabled": {
+          "description": "Enabled defaults to true.",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "Distro": {
+      "description": "Distro selects a built-in distribution. In YAML it is either a name (\"ubuntu-24.04\") or an object that changes the distribution's defaults.",
+      "oneOf": [
+        {
+          "description": "A built-in distribution: packtrix catalog list shows them.",
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+          "examples": [
+            "debian-12",
+            "debian-13",
+            "ubuntu-22.04",
+            "ubuntu-24.04"
+          ],
+          "maxLength": 63
+        },
+        {
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "auth": {
+              "description": "Auth holds credentials for distributions that need them, such as RHEL.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Auth"
+                }
+              ]
+            },
+            "components": {
+              "description": "Components selects parts of the distribution, e.g. [main, universe] or [baseos, appstream, crb]. Defaults depend on the distribution.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "mirror": {
+              "description": "Mirror replaces the official servers, e.g. with a Nexus or Artifactory proxy. Paths and keys stay the same.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Name is the built-in distribution, e.g. \"ubuntu-24.04\".",
+              "type": "string",
+              "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+              "examples": [
+                "debian-12",
+                "debian-13",
+                "ubuntu-22.04",
+                "ubuntu-24.04"
+              ],
+              "maxLength": 63
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Export": {
+      "description": "Export controls how bundles are written.",
+      "type": "object",
+      "properties": {
+        "format": {
+          "description": "Format defaults to \"tar.zst\".",
+          "type": "string",
+          "enum": [
+            "tar.zst"
+          ],
+          "default": "tar.zst"
+        },
+        "splitSize": {
+          "description": "SplitSize splits bundles into parts of this size, e.g. \"4GiB\".",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "OfflineRepositorySpec": {
+      "description": "OfflineRepositorySpec is the desired content of the offline repositories.",
+      "type": "object",
+      "required": [
+        "targets",
+        "packages"
+      ],
+      "properties": {
+        "autoRepos": {
+          "description": "AutoRepos controls automatic detection of built-in vendor repositories.",
+          "default": {
+            "enabled": true
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AutoRepos"
+            }
+          ]
+        },
+        "export": {
+          "description": "Export controls how bundles are written.",
+          "default": {
+            "format": "tar.zst"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Export"
+            }
+          ]
+        },
+        "packages": {
+          "description": "Packages are written once and resolved, with dependencies, for every target they apply to.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/Package"
+          }
+        },
+        "publish": {
+          "description": "Publish controls where and how repositories are written.",
+          "default": {
+            "keepSnapshots": 3,
+            "path": "./repos"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Publish"
+            }
+          ]
+        },
+        "resolve": {
+          "description": "Resolve controls dependency resolution.",
+          "default": {
+            "alternatives": "first",
+            "baseline": "minimal"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Resolve"
+            }
+          ]
+        },
+        "targets": {
+          "description": "Targets are the kinds of machines to build repositories for.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/Target"
+          }
+        },
+        "updates": {
+          "description": "Updates controls how upstream updates are picked up.",
+          "default": {
+            "accept": "all",
+            "publish": "approval"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Updates"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Package": {
+      "description": "Package is one entry of the package list. In YAML it is either a name (\"curl\") or an object.",
+      "oneOf": [
+        {
+          "description": "A package name, e.g. curl.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]*$"
+        },
+        {
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "deb": {
+              "description": "Deb and RPM are the real package names for one format, when they differ from Name.",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]*$"
+            },
+            "except": {
+              "description": "Except applies the package to every target but these.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "name": {
+              "description": "Name is the package name. When Deb or RPM is set, it is only a label.",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]*$"
+            },
+            "only": {
+              "description": "Only limits the package to these targets. Values are target names, or \"deb\"/\"rpm\" for every target of that format.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "repo": {
+              "description": "Repo takes the package from this built-in vendor repository instead of the distribution, e.g. \"nginx-org\".",
+              "type": "string",
+              "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+              "maxLength": 63
+            },
+            "rpm": {
+              "description": "Deb and RPM are the real package names for one format, when they differ from Name.",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]*$"
+            },
+            "version": {
+              "description": "Version constrains the version, e.g. \"1.34.*\". It also selects the repository of vendors that publish one repository per version.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Publish": {
+      "description": "Publish controls where and how repositories are written.",
+      "type": "object",
+      "properties": {
+        "keepSnapshots": {
+          "description": "KeepSnapshots is the number of earlier snapshots kept for rollback. Defaults to 3.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 3
+        },
+        "path": {
+          "description": "Path is the output directory. Defaults to \"./repos\".",
+          "type": "string",
+          "default": "./repos"
+        },
+        "signing": {
+          "$ref": "#/definitions/Signing"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Repository": {
+      "description": "Repository is a repository that isn't part of the built-in catalog.",
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "url",
+        "gpgKey"
+      ],
+      "properties": {
+        "auth": {
+          "description": "Auth holds credentials, when the repository needs them.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Auth"
+            }
+          ]
+        },
+        "components": {
+          "description": "Components is required for apt repositories that aren't flat.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "gpgKey": {
+          "description": "GPGKey is the path to the repository's public signing key.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name identifies the repository in plans, locks and paths.",
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+          "maxLength": 63
+        },
+        "suite": {
+          "description": "Suite is required for apt repositories, e.g. \"stable\", or \"/\" for a flat repository.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Type is the repository's package format: \"apt\" or \"rpm\".",
+          "type": "string",
+          "enum": [
+            "apt",
+            "rpm"
+          ]
+        },
+        "url": {
+          "description": "URL is the repository's base URL. {arch} is replaced with the architecture's native name.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Resolve": {
+      "description": "Resolve controls dependency resolution.",
+      "type": "object",
+      "properties": {
+        "alternatives": {
+          "description": "Alternatives picks \"first\" (default) or \"all\" branches of APT \"a | b\" dependencies.",
+          "type": "string",
+          "enum": [
+            "first",
+            "all"
+          ],
+          "default": "first"
+        },
+        "baseline": {
+          "description": "Baseline is what machines are assumed to have already: \"minimal\" (default), \"none\", or \"lock:<path>\" for a discovered host.",
+          "default": "minimal",
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "minimal",
+                "none"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^lock:.+"
+            }
+          ]
+        },
+        "exclude": {
+          "description": "Exclude lists packages never to download.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "recommends": {
+          "description": "Recommends includes APT Recommends and RPM weak dependencies.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Signing": {
+      "description": "Signing configures the key that signs published repository metadata.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "Key references the OpenPGP private key: \"env:NAME\" reads an environment variable, and \"file:/path\" a file.",
+          "type": "string",
+          "pattern": "^(env:[A-Za-z_][A-Za-z0-9_]*|file:.+)$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Target": {
+      "description": "Target is one kind of machine: a distribution, a release and one or more architectures. Exactly one of Distro or Repos must be set.",
+      "type": "object",
+      "properties": {
+        "architectures": {
+          "description": "Architectures defaults to [amd64].",
+          "type": "array",
+          "default": [
+            "amd64"
+          ],
+          "items": {
+            "type": "string",
+            "enum": [
+              "amd64",
+              "arm64"
+            ]
+          }
+        },
+        "distro": {
+          "description": "Distro is a built-in distribution, e.g. \"ubuntu-24.04\".",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Distro"
+            }
+          ]
+        },
+        "extraRepos": {
+          "description": "ExtraRepos are your own repositories, added on top of Distro.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Repository"
+          }
+        },
+        "name": {
+          "description": "Name identifies the target in only/except and in output paths. Defaults to the distro name.",
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+          "maxLength": 63
+        },
+        "repos": {
+          "description": "Repos is the complete repository list of a distribution Packtrix doesn't know. Vendor repositories aren't detected for these targets.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Repository"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Updates": {
+      "description": "Updates controls how upstream updates are picked up.",
+      "type": "object",
+      "properties": {
+        "accept": {
+          "description": "Accept is \"all\" (default), \"security\", or \"none\".",
+          "type": "string",
+          "enum": [
+            "all",
+            "security",
+            "none"
+          ],
+          "default": "all"
+        },
+        "check": {
+          "description": "Check is a cron expression for scheduled update checks. Empty means updates are checked manually.",
+          "type": "string"
+        },
+        "minAge": {
+          "description": "MinAge is how long a new version must have been published before it is taken, e.g. \"72h\".",
+          "type": "string"
+        },
+        "publish": {
+          "description": "Publish is \"approval\" (default: stop after plan) or \"auto\".",
+          "type": "string",
+          "enum": [
+            "auto",
+            "approval"
+          ],
+          "default": "approval"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

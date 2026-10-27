@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/ProtonMail/go-crypto v1.5.2
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/spf13/cobra v1.10.2
 	github.com/ulikunitz/xz v0.5.17
 	golang.org/x/net v0.57.0

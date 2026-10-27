@@ -84,7 +84,7 @@ verify-gomod:
 
 # Runs every check that pull requests run.
 .PHONY: verify
-verify: verify-boilerplate verify-codegen verify-gomod lint test
+verify: verify-boilerplate verify-codegen verify-schema verify-gomod lint test
 
 .PHONY: lint
 lint: $(GOLANGCI_LINT)
@@ -135,6 +135,18 @@ update-codegen:
 .PHONY: verify-codegen
 verify-codegen:
 	./hack/verify-codegen.sh
+
+# Regenerates the JSON Schema of the manifest from the v1alpha1 types.
+.PHONY: update-schema
+update-schema:
+	go run ./hack/schema -o schemas/v1alpha1/offlinerepository.json
+
+# Fails, showing the difference, if the JSON Schema of the manifest is out of
+# date.
+.PHONY: verify-schema
+verify-schema:
+	@go run ./hack/schema | diff -u schemas/v1alpha1/offlinerepository.json - \
+		|| { echo "The schema is out of date: run make update-schema and commit the result." >&2; exit 1; }
 
 .PHONY: verify-boilerplate
 verify-boilerplate:

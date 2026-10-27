@@ -81,6 +81,7 @@ type Target struct {
 // Distro selects a built-in distribution. In YAML it is either a name
 // ("ubuntu-24.04") or an object that changes the distribution's defaults.
 type Distro struct {
+	// Name is the built-in distribution, e.g. "ubuntu-24.04".
 	Name string `json:"name"`
 	// Components selects parts of the distribution, e.g. [main, universe]
 	// or [baseos, appstream, crb]. Defaults depend on the distribution.
@@ -103,7 +104,9 @@ const (
 
 // Repository is a repository that isn't part of the built-in catalog.
 type Repository struct {
-	Name string   `json:"name"`
+	// Name identifies the repository in plans, locks and paths.
+	Name string `json:"name"`
+	// Type is the repository's package format: "apt" or "rpm".
 	Type RepoType `json:"type"`
 	// URL is the repository's base URL. {arch} is replaced with the
 	// architecture's native name.
@@ -115,15 +118,19 @@ type Repository struct {
 	Components []string `json:"components,omitempty"`
 	// GPGKey is the path to the repository's public signing key.
 	GPGKey string `json:"gpgKey"`
-	Auth   *Auth  `json:"auth,omitempty"`
+	// Auth holds credentials, when the repository needs them.
+	Auth *Auth `json:"auth,omitempty"`
 }
 
 // Auth holds credentials for an upstream repository. Secrets are always
 // references, never literal values.
 type Auth struct {
+	// Username and Password are sent with basic authentication. Password is
+	// a secret reference: "env:NAME" or "file:/path".
 	Username string    `json:"username,omitempty"`
 	Password SecretRef `json:"password,omitempty"`
-	// Token is sent as a bearer token.
+	// Token is sent as a bearer token. It is a secret reference: "env:NAME"
+	// or "file:/path".
 	Token SecretRef `json:"token,omitempty"`
 	// ClientCert and ClientKey are paths to a TLS client certificate.
 	ClientCert string `json:"clientCert,omitempty"`
@@ -236,6 +243,8 @@ type Publish struct {
 
 // Signing configures the key that signs published repository metadata.
 type Signing struct {
+	// Key references the OpenPGP private key: "env:NAME" reads an
+	// environment variable, and "file:/path" a file.
 	Key SecretRef `json:"key,omitempty"`
 }
 
