@@ -10,7 +10,7 @@
 List the packages your air-gapped Linux machines need. Packtrix resolves every dependency for every distro you run, then builds signed APT and RPM repositories you can carry across the air gap.
 
 > [!NOTE]
-> **Status: early development.** For Ubuntu and Debian, the CLI can validate a manifest (`packtrix validate`), show its repositories (`packtrix render`), resolve every target against the verified upstream metadata into `packtrix.lock` (`packtrix plan`), and download, build and publish signed repositories with the machines' client files (`packtrix sync`). Bundles for the air gap (`export`, `import`) aren't implemented yet. The manifest format, CLI and architecture described here are proposals that will change. Feedback is welcome; see [Contributing](#contributing).
+> **Status: early development.** Packtrix builds signed APT repositories for Ubuntu 22.04 and 24.04 and Debian 12 and 13, on amd64 and arm64: `packtrix plan` resolves every target against the verified upstream metadata into `packtrix.lock`, and `packtrix sync` downloads, builds and publishes the repositories with the machines' client files. RPM distributions, vendor repositories and bundles for the air gap are next; see the [roadmap](docs/roadmap.md). There is no release yet, and the manifest format and CLI may still change. Feedback is welcome; see [Contributing](#contributing).
 
 ## Why
 
@@ -33,36 +33,34 @@ spec:
   targets:
     - distro: ubuntu-24.04
     - distro: ubuntu-22.04
-    - distro: rocky-9
+    - distro: debian-12
 
   packages:
     - curl
     - jq
     - conntrack
-    - docker-ce                # Docker's repository is added automatically
-    - name: kubelet
-      version: "1.34.*"        # picks the Kubernetes 1.34 repository
-    - name: apache
-      deb: apache2             # the name differs between deb and rpm
-      rpm: httpd
+    - socat
+    - nfs-common
+
+  publish:
+    signing:
+      key: env:PACKTRIX_SIGNING_KEY   # your key signs the repositories
 ```
 
 ```console
-$ packtrix plan                       # resolve dependencies for each distro, show what will be downloaded
-$ packtrix sync                       # download, verify and build signed repositories
-$ packtrix export -o bundle.tar.zst   # one file to carry across the air gap
+$ packtrix plan                                   # resolve dependencies for each distro, write packtrix.lock
+$ packtrix sync --base-url http://repo.internal   # download, verify, build signed repositories
 ```
 
-### Try it
+The result is one APT repository per distro, with a ready-made source entry for each, to serve with any web server. Coming next: RPM distros such as `rocky-9` in the same manifest, vendor repositories added when a package needs one (`docker-ce`, `kubelet`), and `packtrix export`, one file to carry across the air gap.
 
-What works today is checking a manifest:
+## Get started
 
 ```console
 $ go install github.com/packtrix/packtrix/cmd/packtrix@latest
-$ packtrix validate -f examples/mixed-fleet.yaml
-examples/mixed-fleet.yaml is valid: 4 target(s), 11 package(s)
-$ packtrix validate -f examples/mixed-fleet.yaml -o yaml   # print it with every default filled in
 ```
+
+[Getting started](docs/getting-started.md) goes from a signing key to `apt-get install` on a machine, in about ten minutes.
 
 ## How it works
 
@@ -79,8 +77,8 @@ $ packtrix validate -f examples/mixed-fleet.yaml -o yaml   # print it with every
 
 - **One manifest for APT and RPM.** You name the distros, and Packtrix already knows their official repositories and signing keys.
 - **Dependency resolution built in.** Packtrix resolves dependencies from the repositories' own metadata, following the rules `apt` and `dnf` apply. It's a single binary: no container runtime, no `apt` or `dnf` needed.
-- **Vendor repositories are added automatically.** Docker, Kubernetes, NVIDIA, EPEL and others are added when a package needs them, and the plan always shows it.
-- **Every change is reviewable.** A lockfile records exactly what entered the air gap. Updates show up as a diff and ship as delta bundles.
+- **Vendor repositories are added automatically** *(planned)*. Docker, Kubernetes, NVIDIA, EPEL and others are added when a package needs them, and the plan always shows it.
+- **Every change is reviewable.** A lockfile records exactly what entered the air gap. Updates show up as a diff of it, and *(planned)* ship as delta bundles.
 - **Plain output.** The result is standard, signed APT and RPM repositories, with no agent or plugin on the machines.
 
 ## Use cases
@@ -99,6 +97,7 @@ The documentation is also on the website: **[packtrix.github.io](https://packtri
 
 | Document | Contents |
 |---|---|
+| [Getting started](docs/getting-started.md) | Build, serve and use offline repositories for Ubuntu and Debian, step by step |
 | [Overview](docs/overview.md) | The problem, goals, use cases, related tools |
 | [Concepts](docs/concepts.md) | Targets, packages, repositories, resolution, lockfile, snapshots, bundles |
 | [Manifest reference](docs/manifest.md) | Every field of the manifest (draft) |
@@ -112,8 +111,9 @@ More examples are in [`examples/`](examples/).
 
 ## Contributing
 
-The project is in its design phase. The most useful contributions right now:
+The project is in early development: APT works, RPM is next. The most useful contributions right now:
 
+- **Try it** with your package lists, and open an issue for anything that doesn't resolve or install.
 - **Feedback on the design.** Open an issue if something is unclear, wrong or missing.
 - **Real-world requirements.** Package lists, distro combinations and air-gap transfer constraints you deal with.
 

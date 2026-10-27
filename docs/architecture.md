@@ -1,6 +1,6 @@
 # Architecture
 
-> **Status: design draft.** This describes the intended implementation, for contributors and reviewers.
+> **Status: partly implemented.** For contributors and reviewers. The APT pipeline, from `expand` to `publish`, works as described; RPM, bundles, and the parts marked *planned* don't exist yet.
 
 ## Pipeline
 
@@ -20,9 +20,9 @@ manifest ──► expand ──► resolve ──► lock ──► fetch ─�
 | **lock** | Resolution result | `packtrix.lock` |
 | **fetch** | Lockfile | Package files in the content-addressed pool, each verified |
 | **build** | Pool and lockfile | Repository metadata for each target, signed |
-| **validate** *(optional)* | Candidate snapshot | Proof that `apt`/`dnf` install every listed package from it |
+| **validate** *(optional, planned)* | Candidate snapshot | Proof that `apt`/`dnf` install every listed package from it |
 | **publish** | Built snapshot | `current` switched to the new snapshot |
-| **export** | Snapshot (and optionally an earlier lockfile) | A full or delta bundle |
+| **export** *(planned)* | Snapshot (and optionally an earlier lockfile) | A full or delta bundle |
 
 ## Resolution
 
@@ -87,8 +87,8 @@ Release versions matter for machines installed from older media: if a package ne
 
 The resolver must agree with the tools the machines run:
 
-- **Nightly, in CI:** for every built-in distro, test manifests are resolved by Packtrix and by real `apt` and `dnf` in containers. The check fails if `apt` or `dnf` picks a package that Packtrix's closure doesn't contain.
-- **Optionally, on your side:** `packtrix sync --verify-install` runs the [validation](#validation) step when `podman` or `docker` is available.
+- **Nightly, in CI:** for every built-in distro, Packtrix publishes test manifests, and the real `apt` installs every listed package from them in clean containers (`test/e2e`). *(Planned)* The same manifests are also resolved by `apt` and `dnf` themselves, and the check fails if they pick a package that Packtrix's closure doesn't contain.
+- *(Planned)* **Optionally, on your side:** `packtrix sync --verify-install` runs the [validation](#validation) step when `podman` or `docker` is available.
 
 Containers are used for these checks only. Producing repositories never needs them.
 
@@ -137,13 +137,13 @@ For each target, the distro packages and the vendor packages are merged into **o
 
 ## Validation
 
-With `packtrix sync --verify-install`, Packtrix starts a clean container of each target distro before publishing, points it only at the candidate snapshot, and installs every listed package with `apt` or `dnf`. If any install fails, the snapshot isn't published.
+*(Planned.)* With `packtrix sync --verify-install`, Packtrix starts a clean container of each target distro before publishing, points it only at the candidate snapshot, and installs every listed package with `apt` or `dnf`. If any install fails, the snapshot isn't published.
 
 This step is optional, and it is the only one that needs `podman` or `docker`. The same install tests always run in Packtrix's own CI.
 
 ## Bundles
 
-A bundle is a `tar.zst` archive containing:
+*(Planned.)* A bundle is a `tar.zst` archive containing:
 
 - the snapshot's metadata and the package files it needs (a delta bundle contains only the files the receiver doesn't have yet);
 - the lockfile;

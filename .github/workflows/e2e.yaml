@@ -27,19 +27,29 @@ permissions:
 
 jobs:
   e2e:
-    name: e2e (${{ matrix.test }})
+    name: e2e (${{ matrix.test }}, ${{ matrix.arch }})
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'e2e')
-    runs-on: ubuntu-latest
+    # The tests build for the runner's architecture.
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
+        arch: [amd64]
         test:
           - TestInstall/ubuntu-22.04
           - TestInstall/ubuntu-24.04
           - TestInstall/debian-12
           - TestInstall/debian-13
+          - TestExample/ubuntu-24.04
+          - TestExample/ubuntu-22.04
+          - TestExample/debian-12
           - TestMissingDependency
+        include:
+          - { arch: arm64, test: TestInstall/ubuntu-22.04 }
+          - { arch: arm64, test: TestInstall/ubuntu-24.04 }
+          - { arch: arm64, test: TestInstall/debian-12 }
+          - { arch: arm64, test: TestInstall/debian-13 }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

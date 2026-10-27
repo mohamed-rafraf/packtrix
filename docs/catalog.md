@@ -1,6 +1,6 @@
 # Built-in catalog
 
-> **Status: design draft.** The lists below are the intended initial scope.
+> **Status: partly implemented.** The built-in distros today are `ubuntu-22.04`, `ubuntu-24.04`, `debian-12` and `debian-13`: `packtrix catalog list` shows them. The other distros and the vendor repositories below are planned.
 
 The **catalog** is Packtrix's built-in knowledge of repositories: URLs, components, architectures and pinned signing keys. It lets a manifest say `distro: rocky-9` instead of listing URLs and key files, and lets Packtrix find vendor repositories on its own.
 

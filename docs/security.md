@@ -1,6 +1,6 @@
 # Security
 
-> **Status: design draft.**
+> **Status: early development.** The APT parts work as described. RPM, bundles, and signed catalog releases are planned.
 
 Packtrix sits on the supply chain of every machine it serves. This page describes how trust flows from upstream vendors to those machines, and what Packtrix asserts at each step.
 
@@ -47,11 +47,13 @@ Shipping repository definitions and keys makes the built-in catalog a trust anch
 
 - Only official vendor repositories are included, with keys whose fingerprints match the vendor's own documentation.
 - Every catalog change that adds or changes a key is reviewed against that documentation.
-- Catalog releases are versioned and signed. The version used is recorded in the lockfile, so a catalog update never silently changes an existing lockfile.
+- Catalog releases are versioned, and *(planned)* signed. The version used is recorded in the lockfile, so a catalog update never silently changes an existing lockfile.
 - `packtrix catalog show <name>` and `packtrix render` print exactly which URLs and key fingerprints will be used.
-- `autoRepos.deny` lets an organization forbid repositories it doesn't accept, e.g. EPEL.
+- *(Planned, with vendor repositories)* `autoRepos.deny` lets an organization forbid repositories it doesn't accept, e.g. EPEL.
 
 ## Bundles
+
+*(Planned.)*
 
 - Every bundle has a signed manifest with the SHA-256 of each file.
 - `import` refuses bundles with a bad signature, a missing file or a hash mismatch, and refuses deltas whose base snapshot doesn't match the offline side.
@@ -69,8 +71,8 @@ Shipping repository definitions and keys makes the built-in catalog a trust anch
 - **Default: plain HTTP plus GPG.** This is the standard Debian model. Content integrity and authenticity come from the signatures, not from TLS.
 - **HTTPS is optional** with a certificate you provide. Air-gapped networks can't use public ACME CAs, so the certificate usually comes from an internal CA.
 - **Bootstrap:** machines need the repository key (and, for HTTPS, the internal CA certificate) before they can use the repository. The generated `clients/` and `keys/` directories contain everything to copy onto a machine. Distributing those files belongs to your provisioning process (image build, cloud-init, configuration management).
-- For production, serving `/srv/repos/current` with nginx, Apache or Caddy is recommended. `packtrix serve` is meant for small setups and testing.
+- For production, serving `/srv/repos/current` with nginx, Apache or Caddy is recommended. `packtrix serve` *(planned)* is meant for small setups and testing.
 
 ## Reporting a vulnerability
 
-There is no code yet. Once there is, a `SECURITY.md` with a private reporting channel will be added before the first release.
+A `SECURITY.md` with a private reporting channel will be added before the first release.

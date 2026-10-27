@@ -3,11 +3,12 @@ title: Documentation
 editURL: https://github.com/packtrix/packtrix/edit/main/docs/README.md
 ---
 
-Packtrix is in early development. These pages describe what it will do and how. So far the manifest format and `packtrix validate` are implemented; names, fields and commands may change.
+Packtrix is in early development. It builds signed APT repositories for Ubuntu 22.04 and 24.04 and Debian 12 and 13; RPM, vendor repositories and bundles are planned, and each page marks what isn't implemented yet. Names, fields and commands may change before the first release.
 
-Start with the Overview, then Concepts, the Manifest reference and the Workflow. Architecture and Security are for contributors and for anyone reviewing the trust model.
+Start with Getting started, then the Overview, Concepts, the Manifest reference and the Workflow. Architecture and Security are for contributors and for anyone reviewing the trust model.
 
 {{< cards >}}
+  {{< card link="getting-started" title="Getting started" subtitle="Build offline repositories for Ubuntu and Debian, serve them, and install from them, step by step" icon="play" >}}
   {{< card link="overview" title="Overview" subtitle="Why Packtrix exists, who it is for, what it is not, and how it relates to other tools" icon="light-bulb" >}}
   {{< card link="concepts" title="Concepts" subtitle="Targets, packages, repositories, dependency resolution, baseline, lockfile, snapshots, bundles" icon="book-open" >}}
   {{< card link="manifest" title="Manifest reference" subtitle="Every manifest field, its default, and the validation rules" icon="document-text" >}}

@@ -2,27 +2,31 @@
 
 > **Status: proposal.** Phases describe priorities, not dates.
 
-## Phase 0: Design *(current)*
+## Phase 0: Design
 
 - [x] Problem statement, goals and non-goals
 - [x] Manifest draft (`packtrix.io/v1alpha1`)
 - [x] Architecture and trust model
 - [ ] Feedback from real air-gapped environments
-- [ ] Decide the [open questions](#open-questions) that block Phase 1
+- [x] Decide the [open questions](#open-questions) that block Phase 1
 
-## Phase 1: APT end to end (v0.1.0)
+## Phase 1: APT end to end (v0.1.0) *(current)*
 
-Goal: one manifest produces working, signed APT repositories on a local disk, for Ubuntu and Debian.
+Goal: one manifest produces working, signed APT repositories on a local disk, for Ubuntu and Debian. [Getting started](getting-started.md) shows what works.
 
-- Manifest parsing, defaults, validation, JSON Schema
-- Catalog: `ubuntu-22.04`, `ubuntu-24.04`, `debian-12`, `debian-13`
-- Dependency resolution in Go for APT, checked nightly against `apt`
-- Download, upstream signature verification, content-addressed pool
-- APT metadata subsetting and signing
-- `packtrix.lock`
-- Generated client files (`clients/`) and keys (`keys/`)
-- Commands: `init`, `validate`, `render`, `plan`, `sync`
-- Integration tests: install from the generated repositories in clean containers of each distro
+- [x] Manifest parsing, defaults, validation
+- [ ] JSON Schema of the manifest, for editors
+- [x] Catalog: `ubuntu-22.04`, `ubuntu-24.04`, `debian-12`, `debian-13`, on `amd64` and `arm64`
+- [x] Dependency resolution in Go for APT
+- [ ] Resolution checked nightly against `apt`
+- [x] Download, upstream signature verification, content-addressed pool
+- [x] APT metadata subsetting and signing
+- [x] `packtrix.lock`
+- [x] Generated client files (`clients/`) and keys (`keys/`)
+- [x] Commands: `validate`, `render`, `plan`, `sync`, `catalog`
+- [ ] `init`
+- [x] Integration tests: install from the generated repositories in clean containers of each distro
+- [ ] Release binaries
 
 RPM targets are valid in a manifest, but `plan` reports them as not supported yet.
 
@@ -38,7 +42,7 @@ Goal: the same manifest also produces working, signed RPM repositories, with the
 
 ## Phase 3: Air gap and updates (v0.3.0)
 
-- Snapshots, atomic publication, rollback, garbage collection
+- Rollback and garbage collection. Snapshots and atomic publication came with `sync` in v0.1.0.
 - `export` and `import` with full and delta bundles, `splitSize`
 - `check`, lockfile diffs in `plan`, `updates.accept: security`, `minAge`
 - `serve`
@@ -48,7 +52,7 @@ Goal: the same manifest also produces working, signed RPM repositories, with the
 
 - Vendor repositories with auto-detection: `docker`, `kubernetes@<minor>`, `cri-o@<minor>`, `nvidia-container-toolkit`, `epel-<major>`
 - More distros: Rocky/Alma 8 and 10, CentOS Stream, RHEL (with subscription `auth`), Ubuntu 26.04
-- `arm64`
+- `aarch64` for the RPM distros; the APT distros have `arm64` since v0.1.0
 - Nightly catalog checks in CI; `catalog update`; signed catalog releases
 
 ## Phase 5: Discovery

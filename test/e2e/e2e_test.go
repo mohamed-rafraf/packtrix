@@ -29,11 +29,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/packtrix/packtrix/internal/repo/apt/apttest"
+	"github.com/packtrix/packtrix/pkg/apis/packtrix/manifest"
 )
 
 // binary is the packtrix binary that the tests run, built by TestMain.
@@ -65,9 +68,10 @@ var distros = []struct{ name, image string }{
 	{"debian-13", "debian:13"},
 }
 
-// packages are installed on every distro. ca-certificates runs a
-// maintainer script; the others bring libraries along.
-var packages = []string{"curl", "jq", "rsync", "ca-certificates"}
+// packages are installed on every distro. ca-certificates and nginx run
+// maintainer scripts, which add users and change owners; the others bring
+// libraries along.
+var packages = []string{"curl", "jq", "rsync", "ca-certificates", "nginx"}
 
 func TestInstall(t *testing.T) {
 	for _, d := range distros {
@@ -82,6 +86,35 @@ func TestInstall(t *testing.T) {
 				if strings.HasPrefix(line, "W:") || strings.HasPrefix(line, "E:") {
 					t.Errorf("apt: %s", line)
 				}
+			}
+			t.Log(out)
+		})
+	}
+}
+
+// TestExample publishes examples/k8s-node-prereqs.yaml for each of its
+// distros, and installs every one of its packages.
+func TestExample(t *testing.T) {
+	m, err := manifest.LoadFile("../../examples/k8s-node-prereqs.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, p := range m.Spec.Packages {
+		names = append(names, p.Name)
+	}
+	for _, target := range m.Spec.Targets {
+		d := target.Distro.Name
+		t.Run(d, func(t *testing.T) {
+			t.Parallel()
+			i := slices.IndexFunc(distros, func(x struct{ name, image string }) bool { return x.name == d })
+			if i < 0 {
+				t.Fatalf("no image for %s", d)
+			}
+			r := publish(t, d, names, nil)
+			out, err := r.install(distros[i].image, names)
+			if err != nil {
+				t.Fatalf("installing from the repository: %v\n%s", err, out)
 			}
 			t.Log(out)
 		})
@@ -109,8 +142,9 @@ type repository struct {
 	target string
 }
 
-// publish plans and syncs a manifest of one distro, and serves the result
-// on the host's network, where containers reach it.
+// publish plans and syncs a manifest of one distro, for the host's
+// architecture, which its containers have too, and serves the result on
+// the host's network, where containers reach it.
 func publish(t *testing.T, distro string, pkgs, exclude []string) *repository {
 	t.Helper()
 	dir := t.TempDir()
@@ -125,6 +159,7 @@ metadata:
 spec:
   targets:
     - distro: %s
+      architectures: [%s]
   packages: [%s]
   resolve:
     baseline: none
@@ -132,7 +167,7 @@ spec:
   publish:
     signing:
       key: file:signing.asc
-`, distro, strings.Join(pkgs, ", "), strings.Join(exclude, ", "))
+`, distro, runtime.GOARCH, strings.Join(pkgs, ", "), strings.Join(exclude, ", "))
 	if err := os.WriteFile(filepath.Join(dir, "packtrix.yaml"), []byte(manifest), 0o600); err != nil {
 		t.Fatal(err)
 	}
