@@ -97,13 +97,30 @@ Release notes group pull requests by type: features, fixes, documentation, and t
 
 ### Forks and branches
 
-`packtrix/packtrix` only has `main`: nobody can create branches in it, maintainers included. To contribute:
+`packtrix/packtrix` only has `main`, and the `dependabot/…` branches of Dependabot's pull requests: nobody else can create branches in it, maintainers included. To contribute:
 
 1. Fork the repository.
 2. Push a branch to your fork, named after the change, e.g. `docs/baseline-explanation` or `feat/catalog-rocky-10`.
 3. Open a pull request against `main`, with **Allow edits by maintainers** checked.
 
 If your pull request depends on another one, base it on `main` anyway and say so in its description.
+
+### Dependency updates
+
+[Dependabot](.github/dependabot.yml) opens grouped pull requests every week, titled `chore(deps): …`: one for the `k8s.io` modules, one for the other Go modules, and one for the GitHub Actions. It proposes a version two weeks after its release; security updates come right away. They go through the same checks as any other pull request.
+
+`k8s.io/apimachinery` and `k8s.io/code-generator` must move together, and a new version may change the generated code. When a `k8s.io` update fails `pull-verify-codegen`, a maintainer regenerates the code on Dependabot's branch:
+
+```console
+$ gh pr checkout <number>
+$ make update-codegen
+$ git commit -am "chore(deps): regenerate code"
+$ git push
+```
+
+Dependabot stops rebasing a pull request once someone else has pushed to it; `@dependabot recreate` in a comment starts it over.
+
+Vulnerabilities that a scanner reports but that don't affect Packtrix go in [`osv-scanner.toml`](osv-scanner.toml), with the reason.
 
 ## License
 
