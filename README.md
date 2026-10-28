@@ -127,7 +127,7 @@ The project is in early development: APT works, RPM is next. The most useful con
 - **Feedback on the design.** Open an issue if something is unclear, wrong or missing.
 - **Real-world requirements.** Package lists, distro combinations and air-gap transfer constraints you deal with.
 
-`main` is protected: every change goes through a pull request and is squash-merged. See [CONTRIBUTING.md](CONTRIBUTING.md).
+`main` is protected: every change goes through a pull request and is squash-merged. See [CONTRIBUTING.md](CONTRIBUTING.md). Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
