@@ -1,14 +1,29 @@
 # Contributing to Packtrix
 
-Thanks for your interest. Packtrix is in **early development**: the manifest API and `packtrix validate` exist, and the rest is still being designed in [`docs/`](docs/). Contributions to the design are the most valuable right now.
+Thanks for your interest. Packtrix is in **early development**: it builds signed APT repositories for Ubuntu and Debian, and RPM is next; see the [roadmap](docs/roadmap.md). Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## What helps most right now
 
+- **Trying it.** Build repositories for your own machines, and open a bug report for anything that doesn't plan, sync or install.
 - **Design feedback.** If something in [`docs/`](docs/) is unclear, wrong or missing, open an issue.
 - **Real-world requirements.** The package lists, distro combinations and air-gap transfer constraints you work with (media size limits, approval processes, scanning). These shape the manifest and the defaults.
 - **Documentation fixes.** Pull requests for typos, clarity and examples are welcome.
 
 For larger design changes, open an issue first so we can agree on the direction before you write a pull request.
+
+## Issues and labels
+
+New issues start from a form: a **bug report**, a **feature request**, or a **catalog request** for a distro or vendor repository. Report security vulnerabilities privately instead, as [SECURITY.md](SECURITY.md) describes.
+
+| Label | Meaning |
+|---|---|
+| `kind/*` | The kind of change: `bug`, `feature`, `docs`, `test`, `ci`, `build`, `chore`, `security` or `release`. Every issue and pull request gets one; the forms set it. |
+| `area/*` | The part of Packtrix: `api`, `catalog`, `cli`, `resolver`, `apt`, `rpm`, `fetch`, `repo`, `trust`, `publish` or `bundle`. |
+| `good first issue` | A self-contained change for a first contribution. The issue says where to start. |
+| `help wanted` | A pull request is welcome. |
+| `accessibility` | A barrier for people with disabilities, on the website or in the output. |
+| `e2e` | On a pull request, runs the end-to-end tests: installing from the published repositories in clean containers. |
+| `question`, `duplicate`, `invalid`, `wontfix` | How an issue was closed without a change. |
 
 ## Development
 

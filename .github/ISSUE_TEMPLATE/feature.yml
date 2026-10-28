@@ -1,0 +1,39 @@
+# Copyright 2026 The Packtrix Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Feature request
+description: Something Packtrix should do, or do differently.
+labels: [kind/feature]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The [roadmap](https://packtrix.github.io/docs/roadmap/) may already plan it: RPM distros, vendor repositories and bundles are on the way. For a distro or vendor repository in the built-in catalog, use the catalog request instead.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you're trying to do, and what gets in the way. Your setup helps, such as how packages cross the air gap, the distros, and the number of machines.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you'd like
+      description: How Packtrix could solve it, such as a manifest field or a command.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today
+      description: Workarounds or other tools you use instead.
