@@ -1,0 +1,59 @@
+# Copyright 2026 The Packtrix Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Weekly, grouped updates of the Go modules and the GitHub Actions. A version
+# is proposed two weeks after its release, like the tools in the Makefile;
+# security updates don't wait. Titles are "chore(deps): …", which the title
+# check accepts.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: chore
+      include: scope
+    labels:
+      - kind/chore
+    groups:
+      # k8s.io/apimachinery and k8s.io/code-generator move together, and the
+      # generated code may need make update-codegen: see CONTRIBUTING.md.
+      k8s:
+        patterns:
+          - k8s.io/*
+          - sigs.k8s.io/*
+      go:
+        patterns:
+          - "*"
+
+  # The actions stay pinned by commit SHA; Dependabot updates the SHA and its
+  # version comment.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: chore
+      include: scope
+    labels:
+      - kind/ci
+    groups:
+      actions:
+        patterns:
+          - "*"
