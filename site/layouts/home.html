@@ -47,7 +47,7 @@ $ packtrix export   # one bundle for the air gap` -}}
     <div>
       <h2>One manifest, every distro</h2>
       <p class="px-intro">Name the distros your machines run and the packages they need. Packtrix knows each distro's official repositories and signing keys, and adds vendor repositories such as Docker's or Kubernetes' when a package needs them.</p>
-      <div class="px-code">{{ transform.Highlight $commands "console" "" }}</div>
+      <div class="px-code">{{ partial "packtrix/console-prompts" (transform.Highlight $commands "console" "") }}</div>
     </div>
     <div class="px-code">{{ transform.Highlight $manifest "yaml" "" }}</div>
   </section>
