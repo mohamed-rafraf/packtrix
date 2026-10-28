@@ -1,6 +1,6 @@
 # Packtrix documentation
 
-> **Status: early development.** Packtrix builds signed APT repositories for Ubuntu 22.04 and 24.04 and Debian 12 and 13: [Getting started](getting-started.md) walks through it. RPM, vendor repositories and bundles are planned; each page marks what isn't implemented yet. Names, fields and commands may change before the first release.
+> **Status: v0.1.0, the first release.** Packtrix builds signed APT repositories for Ubuntu 22.04 and 24.04 and Debian 12 and 13: [Getting started](getting-started.md) walks through it. RPM, vendor repositories and bundles are planned; each page marks what isn't implemented yet. The manifest API is `v1alpha1`: names, fields and commands may still change in later releases.
 
 | Document | Read it to learn |
 |---|---|

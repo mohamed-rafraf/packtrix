@@ -12,7 +12,7 @@
 List the packages your air-gapped Linux machines need. Packtrix resolves every dependency for every distro you run, then builds signed APT and RPM repositories you can carry across the air gap.
 
 > [!NOTE]
-> **Status: early development.** Packtrix builds signed APT repositories for Ubuntu 22.04 and 24.04 and Debian 12 and 13, on amd64 and arm64: `packtrix plan` resolves every target against the verified upstream metadata into `packtrix.lock`, and `packtrix sync` downloads, builds and publishes the repositories with the machines' client files. RPM distributions, vendor repositories and bundles for the air gap are next; see the [roadmap](docs/roadmap.md). There is no release yet, and the manifest format and CLI may still change. Feedback is welcome; see [Contributing](#contributing).
+> **Status: v0.1.0, the first release.** Packtrix builds signed APT repositories for Ubuntu 22.04 and 24.04 and Debian 12 and 13, on amd64 and arm64: `packtrix plan` resolves every target against the verified upstream metadata into `packtrix.lock`, and `packtrix sync` downloads, builds and publishes the repositories with the machines' client files. RPM distributions, vendor repositories and bundles for the air gap are next; see the [roadmap](docs/roadmap.md). The manifest API is `v1alpha1`: fields and commands may still change in later releases. Feedback is welcome; see [Contributing](#contributing).
 
 ## Why
 
@@ -58,9 +58,16 @@ The result is one APT repository per distro, with a ready-made source entry for 
 
 ## Get started
 
+Download the binary for your platform from the [releases](https://github.com/packtrix/packtrix/releases), for Linux or macOS, amd64 or arm64:
+
 ```console
-$ go install github.com/packtrix/packtrix/cmd/packtrix@latest
+$ VERSION=0.1.0 OS=linux ARCH=amd64
+$ curl -fsSLO https://github.com/packtrix/packtrix/releases/download/v$VERSION/packtrix_${VERSION}_${OS}_${ARCH}.tar.gz
+$ tar -xzf packtrix_${VERSION}_${OS}_${ARCH}.tar.gz packtrix
+$ sudo install packtrix /usr/local/bin/
 ```
+
+Every release is signed, and comes with checksums, SBOMs and build provenance: [Releasing](docs/releasing.md#verifying-a-release) shows how to check them. With Go 1.26 or newer, `go install github.com/packtrix/packtrix/cmd/packtrix@latest` builds it instead.
 
 [Getting started](docs/getting-started.md) goes from a signing key to `apt-get install` on a machine, in about ten minutes.
 

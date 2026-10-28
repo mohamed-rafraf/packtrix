@@ -7,18 +7,28 @@ This guide builds offline APT repositories for Ubuntu 24.04 and Debian 12 machin
 ## What you need
 
 - A Linux or macOS machine with Internet access: the **connected side**. It reaches the official archives (archive.ubuntu.com, security.ubuntu.com, deb.debian.org, security.debian.org) directly, or through the proxy in `HTTPS_PROXY`.
-- Go 1.26 or newer, to install Packtrix. There is no binary release yet.
 - GnuPG, once, to create the key that signs your repositories.
 - On the offline side, any web server, to serve the repositories to the machines.
 
 ## 1. Install Packtrix
 
+Download the archive for your platform from the [releases](https://github.com/packtrix/packtrix/releases), with `checksums.txt`, and check it. `OS` is `linux` or `darwin`, and `ARCH` is `amd64` or `arm64`:
+
 ```console
-$ go install github.com/packtrix/packtrix/cmd/packtrix@latest
-$ packtrix --help
+$ VERSION=0.1.0 OS=linux ARCH=amd64
+$ URL=https://github.com/packtrix/packtrix/releases/download/v$VERSION
+$ curl -fsSLO $URL/packtrix_${VERSION}_${OS}_${ARCH}.tar.gz
+$ curl -fsSLO $URL/checksums.txt
+$ sha256sum --check --ignore-missing checksums.txt
+packtrix_0.1.0_linux_amd64.tar.gz: OK
+$ tar -xzf packtrix_${VERSION}_${OS}_${ARCH}.tar.gz packtrix
+$ sudo install packtrix /usr/local/bin/
+$ packtrix version
 ```
 
-From a clone of the repository, `make build` writes `bin/packtrix` instead.
+On macOS, `shasum -a 256 --check --ignore-missing checksums.txt` checks the archive. The checksums are signed by the release workflow: [Releasing](releasing.md#verifying-a-release) shows how to check the signature and the build provenance.
+
+With Go 1.26 or newer, `go install github.com/packtrix/packtrix/cmd/packtrix@latest` builds Packtrix instead, and `make build` writes `bin/packtrix` from a clone of the repository.
 
 ## 2. Create a signing key
 
@@ -28,11 +38,13 @@ Packtrix signs the repositories it builds, and the machines trust them through y
 $ mkdir my-servers && cd my-servers
 $ export GNUPGHOME=$(mktemp -d)      # don't touch your personal keyring
 $ gpg --batch --passphrase '' --quick-gen-key 'Packtrix Repository Signing <repo@example.org>' rsa3072 sign never
-$ gpg --armor --export-secret-keys > signing-key.asc
+$ gpg --armor --export-secret-keys 'Packtrix Repository Signing' > signing-key.asc
 $ chmod 600 signing-key.asc
 ```
 
-The key must be RSA of at least 3072 bits, or Ed25519, and must not be protected by a passphrase (support for passphrases is planned). Keep `signing-key.asc` secret: whoever has it can sign packages your machines will trust. In CI, put it in a secret and reference it as `env:PACKTRIX_SIGNING_KEY` instead of a file.
+The export names the key, so it can't take other keys along if `GNUPGHOME` isn't set: the file must hold exactly one key. The key must be RSA of at least 3072 bits, or Ed25519, and must not be protected by a passphrase (support for passphrases is planned).
+
+Keep `signing-key.asc` secret: whoever has it can sign packages your machines will trust. If the directory is a Git repository, add `signing-key.asc` to its `.gitignore`. In CI, put the key in a secret and reference it as `env:PACKTRIX_SIGNING_KEY` instead of a file.
 
 ## 3. Write a manifest
 
@@ -178,6 +190,15 @@ server {
 ```
 
 To try it out, `python3 -m http.server 8080 --directory repos/current` serves it on port 8080 (then use `--base-url http://<host>:8080`).
+
+In a container, mount `repos` and serve its `current` from inside, so that each `sync` is served as soon as it's published:
+
+```console
+$ docker run -d -p 8080:8080 -v "$PWD/repos:/repos:ro" python:3.13-alpine \
+    python -m http.server 8080 --directory /repos/current
+```
+
+A mount of `repos/current` itself stays on the snapshot it pointed to when the container started; Docker Desktop can even resolve it to an older one.
 
 Plain HTTP is fine: the machines check every file against your signature, not against the transport. See [security](security.md#https).
 

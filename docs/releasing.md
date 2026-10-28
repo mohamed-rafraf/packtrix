@@ -13,14 +13,14 @@ The [release workflow](../.github/workflows/release.yaml) runs [GoReleaser](../.
 | `checksums.txt` | The SHA-256 of every archive and SBOM |
 | `checksums.txt.sigstore.json` | A keyless Sigstore signature of `checksums.txt`, made with the identity of the release workflow |
 
-The workflow also attests the build provenance of every file in `checksums.txt`, with GitHub's artifact attestations. Release notes group the merged pull requests by the type of their title: features, fixes, documentation, and the rest.
+The workflow also attests the build provenance of every file in `checksums.txt`, with GitHub's artifact attestations. Release notes list the pull requests merged since the previous release, not since its release candidates, grouped by the type of their title: features, fixes, documentation, and the rest.
 
 ## Cutting a release
 
 1. Check that `main` is ready:
    - CI is green, including the nightly `e2e` and `compare` workflows;
    - the release's milestone has no open issues;
-   - the docs describe what the release does.
+   - the docs describe what the release does, and the install commands in `README.md` and `docs/getting-started.md` name its version.
 2. Try the release locally. `make release-snapshot` builds everything into `dist/`, without signing or publishing.
 3. Tag the commit on `main`, and push the tag:
 
@@ -61,7 +61,7 @@ $ sha256sum --check --ignore-missing checksums.txt
 packtrix_0.1.0_linux_amd64.tar.gz: OK
 ```
 
-**3. The build provenance**, with the GitHub CLI. It shows the repository, workflow and commit that built the archive:
+**3. The build provenance**, with the [GitHub CLI](https://cli.github.com/), version 2.49 or newer: older versions, such as the one in Ubuntu 24.04's archive, have no `attestation` command. It shows the repository, workflow and commit that built the archive:
 
 ```console
 $ gh attestation verify packtrix_0.1.0_linux_amd64.tar.gz --repo packtrix/packtrix

@@ -10,7 +10,7 @@
 - [ ] Feedback from real air-gapped environments
 - [x] Decide the [open questions](#open-questions) that block Phase 1
 
-## Phase 1: APT end to end (v0.1.0) *(current)*
+## Phase 1: APT end to end (v0.1.0) *(done)*
 
 Goal: one manifest produces working, signed APT repositories on a local disk, for Ubuntu and Debian. [Getting started](getting-started.md) shows what works.
 
@@ -26,11 +26,11 @@ Goal: one manifest produces working, signed APT repositories on a local disk, fo
 - [x] Commands: `init`, `validate`, `render`, `plan`, `sync`, `catalog`
 - [x] Integration tests: install from the generated repositories in clean containers of each distro
 - [x] Release pipeline: archives, SBOMs, signed checksums and build provenance ([releasing](releasing.md))
-- [ ] The v0.1.0 release
+- [x] The v0.1.0 release
 
 RPM targets are valid in a manifest, but `plan` reports them as not supported yet.
 
-## Phase 2: RPM (v0.2.0)
+## Phase 2: RPM (v0.2.0) *(current)*
 
 Goal: the same manifest also produces working, signed RPM repositories, with the same resolver and pipeline.
 
