@@ -1,0 +1,7 @@
+{{- /*
+  Takes a highlighted console block, and returns it with the "$ " that starts
+  a command drawn by CSS (.px-prompt in custom.css) instead of written in the
+  text. Selecting the commands, or the copy button, then leaves it out. Other
+  prompts, such as "#", stay as they are.
+*/ -}}
+{{- return (replaceRE `<span class="gp">\$</span> ?` `<span class="gp px-prompt"></span>` . | safeHTML) -}}

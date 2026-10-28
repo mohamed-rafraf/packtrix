@@ -31,6 +31,13 @@ h1, h2, h3,
   letter-spacing: -0.02em;
 }
 
+/* The "$ " before a command in console blocks: drawn here rather than part of
+   the text, so selecting or copying the commands leaves it out. See
+   layouts/_partials/packtrix/console-prompts.html. */
+.px-prompt::before {
+  content: "$ ";
+}
+
 /* The mark's cube faces, for light and dark mode. */
 .px-mark .px-t { fill: #3b4b63; }
 .px-mark .px-l { fill: #24324a; }
