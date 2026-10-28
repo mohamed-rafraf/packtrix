@@ -1,8 +1,6 @@
 module github.com/packtrix/packtrix
 
-go 1.26.0
-
-toolchain go1.26.10
+go 1.26.10
 
 require (
 	github.com/ProtonMail/go-crypto v1.5.2
