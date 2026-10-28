@@ -1,6 +1,6 @@
 # Manifest reference
 
-> **Status: draft of `packtrix.io/v1alpha1`.** Fields and defaults may change before the first release.
+> **Status: `packtrix.io/v1alpha1`, an alpha API.** Fields and defaults may still change in later releases; the release notes say what changed.
 
 Packtrix reads `packtrix.yaml` from the current directory by default. Use `-f <file>` to choose another file.
 

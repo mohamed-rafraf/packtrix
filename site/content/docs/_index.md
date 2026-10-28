@@ -3,7 +3,7 @@ title: Documentation
 editURL: https://github.com/packtrix/packtrix/edit/main/docs/README.md
 ---
 
-Packtrix is in early development. It builds signed APT repositories for Ubuntu 22.04 and 24.04 and Debian 12 and 13; RPM, vendor repositories and bundles are planned, and each page marks what isn't implemented yet. Names, fields and commands may change before the first release.
+Packtrix v0.1.0 is the first release. It builds signed APT repositories for Ubuntu 22.04 and 24.04 and Debian 12 and 13; RPM, vendor repositories and bundles are planned, and each page marks what isn't implemented yet. The manifest API is `v1alpha1`: names, fields and commands may still change in later releases.
 
 Start with Getting started, then the Overview, Concepts, the Manifest reference and the Workflow. Architecture and Security are for contributors and for anyone reviewing the trust model.
 

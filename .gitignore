@@ -46,3 +46,4 @@ go.work.sum
 
 # private keys
 *.pem
+/*.asc

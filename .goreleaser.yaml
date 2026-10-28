@@ -73,6 +73,8 @@ snapshot:
 changelog:
   use: github
   sort: asc
+  # The pull request number in each title links to the pull request.
+  format: "{{ .Message }}"
   groups:
     - title: Features
       regexp: '^.*?feat(\(.+\))?!?:.+$'
